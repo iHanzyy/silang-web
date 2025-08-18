@@ -1,15 +1,6 @@
-import { Orbitron, Baloo_2 } from "next/font/google";
 import "./globals.css";
+import { orbitron, baloo, quicksand } from "@/lib/fonts";
 
-const orbitron = Orbitron({
-  variable: "--font-orbitron",
-  subsets: ["latin"],
-});
-
-const baloo = Baloo_2({
-  variable: "--font-baloo",
-  subsets: ["latin"],
-});
 
 export const metadata = {
   title: "SiLang: Sign Language",
@@ -19,9 +10,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${orbitron.variable} ${baloo.variable} antialiased`}
-      >
+      <body className={`${orbitron.variable} ${baloo.variable} ${quicksand.variable} antialiased bg-gradient-to-b from-[#1A2A80] to-[#05091A] bg-fixed`}>
         {children}
       </body>
     </html>

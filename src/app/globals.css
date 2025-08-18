@@ -5,9 +5,6 @@ html, body {
 }
 
 body {
-  /* Gradasi biru seperti di desain */
-  background: linear-gradient(180deg, #0d1d58 0%, #0f2469 40%, #0b1a4a 100%);
-  color: #e6ebff; /* putih kebiruan yang lembut */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

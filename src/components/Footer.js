@@ -1,10 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Github } from 'lucide-react';
+import { orbitron, quicksand } from "@/lib/fonts";
 
 export default function Footer() {
   return (
-    <footer className="mt-10 border-t border-white/10">
-      <div className="mx-auto max-w-7xl px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-10">
+    <footer className="mt-10">
+      <div className="mx-auto max-w-7xl px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-10 text-white">
         {/* Brand */}
         <div className="flex items-start gap-4">
           <Image
@@ -15,8 +17,8 @@ export default function Footer() {
             className="rounded-md"
           />
           <div>
-            <h4 className="font-semibold text-lg">SiLang</h4>
-            <p className="mt-2 text-sm text-slate-300/90 max-w-xs">
+            <h4 className={`font-bold text-xl ${orbitron.className}`}>SiLang</h4>
+            <p className={`mt-2 text-sm text-slate-300/90 max-w-xs font-bold ${quicksand.className}`}>
               Sign language transforms silence into trust, love, and endless stories.
             </p>
           </div>
@@ -24,15 +26,15 @@ export default function Footer() {
 
         {/* Quick Links */}
         <div>
-          <h4 className="font-semibold text-lg">Quick Links</h4>
+          <h4 className={`font-bold text-xl ${orbitron.className}`}>Quick Links</h4>
           <ul className="mt-4 space-y-2">
             <li>
-              <Link href="/" className="text-slate-300 hover:text-white">
+              <Link href="/" className={`text-slate-300 hover:text-white font-semibold ${quicksand.className} text-[15px]`}>
                 Home
               </Link>
             </li>
             <li>
-              <Link href="/about" className="text-slate-300 hover:text-white">
+              <Link href="/about" className={`text-slate-300 hover:text-white font-semibold ${quicksand.className} text-[15px]`}>
                 About
               </Link>
             </li>
@@ -41,24 +43,24 @@ export default function Footer() {
 
         {/* Contact */}
         <div>
-          <h4 className="font-semibold text-lg">Contact With Us</h4>
+          <h4 className={`font-bold text-xl ${orbitron.className}`}>Contact With Us</h4>
           <div className="mt-4 flex items-center gap-3">
             {/* Placeholder untuk ikon sosmed */}
             <a
-              href="mailto:contact@silang.example"
+              href="https://github.com/iHanzyy/silang-web"
               className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-              aria-label="Email us"
-              title="Email"
+              aria-label="GitHub"
+              title="GitHub"
             >
-              ✉
+              <Github />
             </a>
           </div>
         </div>
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t border-white/10">
-        <div className="mx-auto max-w-7xl px-6 py-6 text-sm flex flex-col md:flex-row items-center justify-between gap-3 text-slate-300/90">
+      <div className="border-t border-white/50">
+        <div className={`mx-auto max-w-7xl px-6 py-6 text-[15px] flex flex-col md:flex-row items-center justify-between gap-3 text-white ${quicksand.className} font-semibold`}>
           <p>© 2025 SiLang. All rights reserved.</p>
           <p>Developed by SiLang Team</p>
         </div>
