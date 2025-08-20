@@ -50,13 +50,13 @@ export default function HeroSection() {
         </div>
 
         {/* Right image card */}
-        <div className="rounded-3xl card-ivory p-8 md:p-12 shadow-2xl">
-          <div className="aspect-[16/10] w-full relative rounded-2xl overflow-hidden">
+        <div className="rounded-3xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#F9F6EE' }}>
+          <div className="aspect-[16/10] w-full relative">
             <Image
               src="/SilangBackgroundMain.png"
               alt="Sign Language Illustration"
               fill
-              className="object-cover object-center"
+              className="object-cover object-center rounded-3xl"
               priority
             />
           </div>
