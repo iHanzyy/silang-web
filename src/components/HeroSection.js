@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { orbitron, quicksand, baloo } from "@/lib/fonts";
-import { ArrowRight } from "lucide-react";
+import RoundedSlideButton from "@/components/RoundedSlideButton";
+
 
 export default function HeroSection() {
   return (
@@ -8,11 +9,15 @@ export default function HeroSection() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         {/* Left text */}
         <div>
-          <p className={`text-[15px] uppercase tracking-[0.2em] text-slate-300/80 ${orbitron.className} font-bold`}>
+          <p
+            className={`text-[15px] uppercase tracking-[0.2em] text-slate-300/80 ${orbitron.className} font-bold`}
+          >
             Sign Language, a Universal Connection
           </p>
 
-          <h1 className={`mt-4 text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-slate-50 ${baloo.className}`}>
+          <h1
+            className={`mt-4 text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-slate-50 ${baloo.className}`}
+          >
             Through hands we
             <br />
             share <span className="text-[#7A85C1]">emotions</span>,
@@ -24,20 +29,20 @@ export default function HeroSection() {
             <span className="text-[#7A85C1]">understanding</span>.
           </h1>
 
-          <div className={`mt-10 flex flex-wrap items-center gap-4 ${quicksand.className}`}>
-            <a
-              id="get-started"
-              href="#learn"
-              className="inline-flex items-center justify-center rounded-xl bg-white text-[#3B38A0] px-5 py-3 font-bold shadow hover:shadow-lg transition"
-            >
-              Start Learning <ArrowRight size={20} />
-            </a>
-            <a
+          <div
+            className={`mt-10 flex flex-wrap items-center gap-4 ${quicksand.className}`}
+          >
+            <RoundedSlideButton
+              href="/dashboard"
+              label="Start Learning"
+              color="#B2B0E8"
+            />
+            <RoundedSlideButton
               href="/about"
-              className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-[#3B38A0] hover:shadow-lg transition"
-            >
-              About SiLang
-            </a>
+              icon={null}
+              label="About SiLang"
+              color="#B2B0E8"
+            />
           </div>
         </div>
 
