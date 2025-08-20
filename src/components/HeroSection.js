@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 export default function HeroSection() {
   return (
-    <section className="mx-auto max-w-7xl px-6 pt-14 pb-24">
+    <section className="mx-auto max-w-7xl px-6 pt-14 pb-24 mt-10">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         {/* Left text */}
         <div>

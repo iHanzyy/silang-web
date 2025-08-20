@@ -1,68 +1,112 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Github } from 'lucide-react';
-import { orbitron, quicksand } from "@/lib/fonts";
+import { Github } from "lucide-react";
+import { orbitron, quicksand } from "@/lib/fonts"; // sesuaikan importmu
 
 export default function Footer() {
   return (
-    <footer className="mt-10">
-      <div className="mx-auto max-w-7xl px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-10 text-white">
-        {/* Brand */}
-        <div className="flex items-start gap-4">
-          <Image
-            src="/LogoSiLang.png"
-            alt="SiLang"
-            width={40}
-            height={40}
-            className="rounded-md"
-          />
-          <div>
-            <h4 className={`font-bold text-xl ${orbitron.className}`}>SiLang</h4>
-            <p className={`mt-2 text-sm text-slate-300/90 max-w-xs font-bold ${quicksand.className}`}>
-              Sign language transforms silence into trust, love, and endless stories.
-            </p>
+    <footer className="mt-2 bg-transparent">
+      {/* Container utama */}
+      <div className="mx-auto max-w-7xl px-1 text-white">
+        {/* 3 kolom (brand / links / contact) */}
+        <div className="py-12">
+          {/* inner container supaya ketiga bloknya terpusat dan tidak terlalu melebar */}
+          <div
+            className="mx-auto max-w-5xl 
+                  grid grid-cols-1 
+                  md:grid-flow-col md:auto-cols-max md:justify-center 
+                  gap-y-10 md:gap-x-24 text-white ml-11"
+          >
+{/* Brand (logo + wordmark, tagline di bawah) */}
+<div className="justify-self-center md:justify-self-end">
+  {/* baris logo + tulisan SiLang */}
+  <div className="flex items-center gap-3">
+    <Image
+      src="/LogoSiLang.png"
+      alt="SiLang"
+      width={40}               // sesuaikan 40–48 biar pas
+      height={40}
+      className="block select-none shrink-0" // tidak menambah styling lain
+      priority
+    />
+    <span
+      className={`font-bold leading-none tracking-[0.03em] text-[28px] text-white ${orbitron.className}`}
+    >
+      SiLang
+    </span>
+  </div>
+
+  {/* tagline */}
+  <p
+    className={`mt-4 max-w-[320px] text-[16px] leading-7 text-white/90 font-semibold ${quicksand.className}`}
+  >
+    Sign language transforms silence into trust, love, and
+    endless stories.
+  </p>
+</div>
+
+
+            {/* Quick Links */}
+            <div className="justify-self-center text-center md:text-left">
+              <h4 className={`text-2xl font-bold ${orbitron.className}`}>
+                Quick Links
+              </h4>
+              <ul className="mt-4 space-y-3">
+                <li>
+                  <Link
+                    href="/"
+                    className={`text-white/80 hover:text-white font-semibold ${quicksand.className} text-[15px]`}
+                  >
+                    Home
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/about"
+                    className={`text-white/80 hover:text-white font-semibold ${quicksand.className} text-[15px]`}
+                  >
+                    About
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Contact */}
+            <div className="justify-self-center md:justify-self-start text-center md:text-left">
+              <h4 className={`text-2xl font-bold ${orbitron.className}`}>
+                Contact With Us
+              </h4>
+              <div className="mt-4 flex items-center justify-center md:justify-start gap-3">
+                <a
+                  href="https://github.com/iHanzyy/silang-web"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+                  aria-label="GitHub"
+                  title="GitHub"
+                >
+                  <Github size={20} />
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Quick Links */}
-        <div>
-          <h4 className={`font-bold text-xl ${orbitron.className}`}>Quick Links</h4>
-          <ul className="mt-4 space-y-2">
-            <li>
-              <Link href="/" className={`text-slate-300 hover:text-white font-semibold ${quicksand.className} text-[15px]`}>
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link href="/about" className={`text-slate-300 hover:text-white font-semibold ${quicksand.className} text-[15px]`}>
-                About
-              </Link>
-            </li>
-          </ul>
+        {/* Divider/garis tipis sesuai lebar container */}
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="h-[2px] w-full bg-[#B2B0E8]" />
         </div>
 
-        {/* Contact */}
-        <div>
-          <h4 className={`font-bold text-xl ${orbitron.className}`}>Contact With Us</h4>
-          <div className="mt-4 flex items-center gap-3">
-            {/* Placeholder untuk ikon sosmed */}
-            <a
-              href="https://github.com/iHanzyy/silang-web"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-              aria-label="GitHub"
-              title="GitHub"
-            >
-              <Github />
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom bar */}
-      <div className="border-t border-white/50">
-        <div className={`mx-auto max-w-7xl px-6 py-6 text-[15px] flex flex-col md:flex-row items-center justify-between gap-3 text-white ${quicksand.className} font-semibold`}>
-          <p>© 2025 SiLang. All rights reserved.</p>
-          <p>Developed by SiLang Team</p>
+        {/* Bottom bar: teks tengah */}
+        <div className="py-6 text-center">
+          <p
+            className={`text-[15px] font-semibold text-white ${quicksand.className}`}
+          >
+            © 2025 SiLang. All rights reserved.
+          </p>
+          <p
+            className={`text-[15px] font-semibold text-white ${quicksand.className}`}
+          >
+            Developed by SiLang Team
+          </p>
         </div>
       </div>
     </footer>
