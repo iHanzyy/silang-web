@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import { orbitron, quicksand, baloo } from "@/lib/fonts";
 import RoundedSlideButton from "@/components/RoundedSlideButton";
+import { Info } from "lucide-react";
 
 
 export default function HeroSection() {
@@ -39,7 +42,7 @@ export default function HeroSection() {
             />
             <RoundedSlideButton
               href="/about"
-              icon={null}
+              icon={Info}
               label="About SiLang"
               color="#B2B0E8"
             />
