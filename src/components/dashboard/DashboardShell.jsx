@@ -6,7 +6,6 @@ import DashboardSidebar from "./DashboardSidebar";
 import DashboardTopMenu from "./DashboardTopMenu";
 import AnimatedHamburgerButton from "@/components/AnimatedHamburgerButton";
 
-// hook kecil untuk breakpoint md
 function useIsMdUp() {
   const [mdUp, setMdUp] = useState(false);
   useEffect(() => {
@@ -20,12 +19,14 @@ function useIsMdUp() {
 }
 
 const SIDEBAR_W = 232;
+// ⬇️ jarak aman dari hamburger saat sidebar TERTUTUP
+const HAMBURGER_SAFE_OFFSET = 50; // ubah ke 64/80 sesuai selera
 
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
   const mdUp = useIsMdUp();
 
-  // desktop sidebar (persist)
+  // desktop: persist open state
   const [deskOpen, setDeskOpen] = useState(true);
   useEffect(() => {
     const saved = localStorage.getItem("dashSidebarOpen");
@@ -37,65 +38,59 @@ export default function DashboardShell({ children }) {
 
   // mobile drawer
   const [mobOpen, setMobOpen] = useState(false);
-
-  // tutup mobile saat route berubah; desktop tetap (sesuai jawaban #2)
   useEffect(() => {
-    if (!mdUp) setMobOpen(false);
+    if (!mdUp) setMobOpen(false); // close when route changes on mobile
   }, [pathname, mdUp]);
 
-  // ESC menutup menu (mobile saja)
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") setMobOpen(false);
-    };
+    const onKey = (e) => e.key === "Escape" && setMobOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
     <div className="relative min-h-screen text-white">
-      {/* Hamburger desktop: kiri-atas */}
+      {/* Hamburger desktop (kiri-atas) */}
       <div className="hidden md:block fixed left-4 top-4 z-50">
-        <AnimatedHamburgerButton
-          initialOpen={deskOpen}
-          onToggle={setDeskOpen}
-        />
+        <AnimatedHamburgerButton initialOpen={deskOpen} onToggle={setDeskOpen} />
       </div>
 
-      {/* Hamburger mobile: kanan-atas */}
+      {/* Hamburger mobile (kanan-atas) */}
       <div className="md:hidden fixed right-4 top-4 z-50">
-        <AnimatedHamburgerButton
-          initialOpen={mobOpen}
-          onToggle={setMobOpen}
-        />
+        <AnimatedHamburgerButton initialOpen={mobOpen} onToggle={setMobOpen} />
       </div>
 
-      {/* DESKTOP LAYOUT (push) */}
+      {/* ==== DESKTOP: sidebar push + content-only scroll ==== */}
       <div
-        className="hidden md:grid min-h-screen"
+        className="hidden md:grid"
         style={{
           gridTemplateColumns: `${deskOpen ? SIDEBAR_W : 0}px 1fr`,
-          transition: "none", // no animation
+          height: "100vh",
         }}
       >
-        {/* kolom sidebar */}
+        {/* Sidebar column */}
         <div className="overflow-hidden">
           {deskOpen && (
-            <DashboardSidebar onExit={() => (window.location.href = "/")} />
+            <div className="sticky top-0 h-screen">
+              <DashboardSidebar onExit={() => (window.location.href = "/")} />
+            </div>
           )}
         </div>
 
-        {/* kolom konten */}
-        <div className="min-h-screen">{children}</div>
+        {/* Content column */}
+        <div
+          className="h-screen overflow-y-auto"
+          // ⬇️ saat sidebar tertutup, kasih padding kiri supaya konten gak nabrak hamburger
+          style={{ paddingLeft: deskOpen ? 0 : HAMBURGER_SAFE_OFFSET }}
+        >
+          <div className="pb-10">{children}</div>
+        </div>
       </div>
 
-      {/* MOBILE LAYOUT (drawer dari atas) */}
+      {/* ==== MOBILE: drawer dari atas ==== */}
       <div className="md:hidden min-h-screen">
-        {/* panel top menu */}
         {mobOpen && <DashboardTopMenu onClose={() => setMobOpen(false)} />}
-
-        {/* konten */}
-        <div className="min-h-screen">{children}</div>
+        <div>{children}</div>
       </div>
     </div>
   );
