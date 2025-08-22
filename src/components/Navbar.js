@@ -96,7 +96,7 @@ export default function Navbar() {
           {/* Desktop CTA (boleh tetap glass) */}
           <div className="hidden md:block">
             <RoundedSlideButton
-              href="#get-started"
+              href="/dashboard"
               label="Get started"
               iconPlacement="right"
             />
