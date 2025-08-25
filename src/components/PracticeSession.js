@@ -6,23 +6,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getModuleProgress, setModuleProgress } from "@/lib/progress";
 
-// ===== PARAMETER DETEKSI =====
 const HOLD_MS = 1200;
 const CONF_TH = 0.8;
 const LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-// ===== CDN =====
-const TFJS_SRC =
-  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js";
-// fallback kalau environment kamu tidak otomatis expose converter
-const TF_CONVERTER_SRC =
-  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.14.0/dist/tf-converter.min.js";
-const HANDS_SRC = "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js";
-const DRAW_SRC =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js";
-const CAMERA_SRC =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
-
+// ---------- script loader helpers ----------
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -30,43 +18,51 @@ function loadScriptOnce(src) {
     s.src = src;
     s.async = true;
     s.onload = resolve;
-    s.onerror = reject;
+    s.onerror = () => reject(new Error(`Failed to load ${src}`));
     document.head.appendChild(s);
   });
 }
 
-// Pastikan TFJS benar-benar siap + ada loadGraphModel
-async function ensureTF() {
-  await loadScriptOnce(TFJS_SRC);
-
-  // tunggu hingga window.tf tersedia
-  for (let i = 0; i < 60 && !window.tf; i++) {
-    await new Promise((r) => setTimeout(r, 50));
-  }
-
-  // kalau loadGraphModel belum ada, muat converter
-  if (!window.tf?.loadGraphModel) {
-    await loadScriptOnce(TF_CONVERTER_SRC);
-    for (let i = 0; i < 40 && !window.tf?.loadGraphModel; i++) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
-  }
-
-  if (!window.tf?.loadGraphModel) {
-    throw new Error("TFJS belum expose loadGraphModel");
-  }
-
-  await window.tf.ready();
-  // pilih backend terbaik yang tersedia
-  try {
-    await window.tf.setBackend("webgl");
-  } catch {
-    try {
-      await window.tf.setBackend("cpu");
-    } catch {}
-  }
+function waitForGlobal(key, timeout = 5000) {
+  const start = performance.now();
+  return new Promise((resolve, reject) => {
+    (function tick() {
+      if (globalThis[key]) return resolve(globalThis[key]);
+      if (performance.now() - start > timeout)
+        return reject(new Error(`Global "${key}" not found`));
+      requestAnimationFrame(tick);
+    })();
+  });
 }
 
+/** Singleton loader untuk MediaPipe UMD dari /public */
+async function ensureMediaPipe(base = "/mediapipe") {
+  if (!globalThis.__mpReady) {
+    globalThis.__mpReady = (async () => {
+      await loadScriptOnce(`${base}/drawing_utils/drawing_utils.js`);
+      await loadScriptOnce(`${base}/camera_utils/camera_utils.js`);
+      await loadScriptOnce(`${base}/hands/hands.js`);
+      // tunggu global-nya benar2 ada (hindari race onload)
+      await waitForGlobal("drawConnectors");
+      await waitForGlobal("drawLandmarks");
+      await waitForGlobal("Camera");
+      await waitForGlobal("Hands");
+      // sanity log
+      const diag = {
+        Hands: !!globalThis.Hands,
+        Camera: !!globalThis.Camera,
+        drawConnectors: !!globalThis.drawConnectors,
+        drawLandmarks: !!globalThis.drawLandmarks,
+      };
+      console.log("[MP ready]", diag);
+      if (!diag.Hands) throw new Error("Hands global missing after load.");
+      return diag;
+    })();
+  }
+  return globalThis.__mpReady;
+}
+
+// ---------- component ----------
 export default function PracticeSession({ moduleId, title, letters, words }) {
   const router = useRouter();
   const isWordsMode = Array.isArray(words);
@@ -81,14 +77,16 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
   const [pred, setPred] = useState("-");
   const [conf, setConf] = useState("-");
   const [loading, setLoading] = useState(true);
+  const [fatal, setFatal] = useState("");
 
   // refs
   const videoRef = useRef(null);
-  const canvasRef = useRef(null); // video canvas
-  const guideRef = useRef(null);  // landmark canvas
+  const canvasRef = useRef(null);
+  const guideRef = useRef(null);
   const handsRef = useRef(null);
   const cameraRef = useRef(null);
   const modelRef = useRef(null);
+  const rafIdRef = useRef(0);
 
   // restore progress
   useEffect(() => {
@@ -112,26 +110,36 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
     return (letters?.[idx] || "A").toUpperCase();
   }, [isWordsMode, words, wordIdx, letterIdx, letters, idx]);
 
-  const targetImg = useMemo(
-    () => `/practice/letters/${targetLetter}.png`,
-    [targetLetter]
+  const targetWord = useMemo(
+    () => (isWordsMode ? words?.[wordIdx] || "" : null),
+    [isWordsMode, words, wordIdx]
   );
 
-  // boot
   useEffect(() => {
     let stopped = false;
+    let usedManual = false;
 
     async function boot() {
       try {
+        setFatal("");
         setLoading(true);
 
-        await ensureTF();                       // ⬅️ perbaikan utama
-        await loadScriptOnce(HANDS_SRC);
-        await loadScriptOnce(DRAW_SRC);
-        await loadScriptOnce(CAMERA_SRC);
+        // 1) TFJS (ESM) — stable
+        const tf = await import("@tensorflow/tfjs");
+        await tf.ready();
+        try {
+          await tf.setBackend("webgl");
+        } catch {
+          await tf.setBackend("cpu");
+        }
 
-        const tf = window.tf;
-        // pastikan model kamu berada di /public/ai/model.json (+ shard .bin)
+        // 2) MediaPipe UMD dari /public + waitForGlobal
+        await ensureMediaPipe("/mediapipe");
+
+        // 3) permissions & getUserMedia polyfill
+        await ensureMediaAccess();
+
+        // 4) model TFJS
         modelRef.current = await tf.loadGraphModel("/ai/model.json");
 
         const video = videoRef.current;
@@ -140,8 +148,8 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
         const gCanvas = guideRef.current;
         const gctx = gCanvas.getContext("2d");
 
-        // samakan ukuran canvas dg video dan hormati DPR (supaya akurat)
-        const setCanvasSizeToVideo = () => {
+        // DPR-aware canvas sizing
+        const setSize = () => {
           const vw = video.videoWidth || 640;
           const vh = video.videoHeight || 480;
           const dpr = window.devicePixelRatio || 1;
@@ -161,117 +169,142 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
           gCanvas.style.height = `${vh}px`;
         };
 
-        const Hands = window.Hands;
-        const hands = new Hands({
-          locateFile: (f) =>
-            `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
+        // 5) Hands instance dengan locateFile ke /public
+        const hands = new globalThis.Hands({
+          locateFile: (f) => `/mediapipe/hands/${f}`,
         });
         hands.setOptions({
           maxNumHands: 2,
           modelComplexity: 1,
           minDetectionConfidence: 0.7,
           minTrackingConfidence: 0.5,
-          // mirror via CSS wrapper (bukan selfieMode), biar overlay pas
         });
+        handsRef.current = hands;
 
         let lastLetter = null;
         let holdStart = 0;
-        let stepping = false; // cooldown supaya tidak next dua kali
+        let stepping = false;
 
         hands.onResults(async (results) => {
+          // resync ukuran jika perlu
+          const needW = Math.round(
+            (video.videoWidth || 640) * (window.devicePixelRatio || 1)
+          );
+          if (canvas.width !== needW) setSize();
+
+          // draw video
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
 
+          // draw landmarks (DPR-aware)
           gctx.clearRect(0, 0, gCanvas.width, gCanvas.height);
-
           if (
-            !results.multiHandLandmarks ||
-            results.multiHandLandmarks.length === 0 ||
-            !modelRef.current
+            results.multiHandLandmarks &&
+            results.multiHandLandmarks.length > 0 &&
+            modelRef.current
           ) {
-            setPred("-");
-            setConf("-");
-            lastLetter = null;
-            holdStart = 0;
-            return;
-          }
-
-          if (window.drawConnectors && window.drawLandmarks) {
             for (const lms of results.multiHandLandmarks) {
-              window.drawConnectors(gctx, lms, window.HAND_CONNECTIONS, {
+              globalThis.drawConnectors(gctx, lms, globalThis.HAND_CONNECTIONS, {
                 color: "#12057d",
                 lineWidth: gctx.lineWidth,
               });
-              window.drawLandmarks(gctx, lms, {
+              globalThis.drawLandmarks(gctx, lms, {
                 color: "#dc3767",
                 radius: 2 * (window.devicePixelRatio || 1),
               });
             }
-          }
 
-          const feats = toFeatures(results.multiHandLandmarks);
-          const input = tf.tensor2d([feats], [1, 126]);
-          try {
-            const out = modelRef.current.predict(input);
-            const arr = out.arraySync()[0];
-            const maxV = Math.max(...arr);
-            const cls = arr.indexOf(maxV);
-            const letter = LABELS[cls];
+            const feats = toFeatures(results.multiHandLandmarks);
+            const input = tf.tensor2d([feats], [1, 126]);
+            try {
+              const out = modelRef.current.predict(input);
+              const arr = out.arraySync()[0];
+              const maxV = Math.max(...arr);
+              const cls = arr.indexOf(maxV);
+              const letter = LABELS[cls];
 
-            setPred(letter);
-            setConf((maxV * 100).toFixed(1));
+              setPred(letter);
+              setConf((maxV * 100).toFixed(1));
 
-            const now = Date.now();
-            if (maxV >= CONF_TH) {
-              if (lastLetter === letter) {
-                if (!holdStart) holdStart = now;
-                if (
-                  !stepping &&
-                  now - holdStart >= HOLD_MS &&
-                  letter === targetLetter
-                ) {
-                  stepping = true;
-                  nextStep();
-                  setTimeout(() => (stepping = false), 250);
-                  lastLetter = null;
-                  holdStart = 0;
+              const now = Date.now();
+              if (maxV >= CONF_TH) {
+                if (lastLetter === letter) {
+                  if (!holdStart) holdStart = now;
+                  if (!stepping && now - holdStart >= HOLD_MS && letter === targetLetter) {
+                    stepping = true;
+                    nextStep();
+                    setTimeout(() => (stepping = false), 250);
+                    lastLetter = null;
+                    holdStart = 0;
+                  }
+                } else {
+                  lastLetter = letter;
+                  holdStart = now;
                 }
               } else {
-                lastLetter = letter;
-                holdStart = now;
+                lastLetter = null;
+                holdStart = 0;
               }
-            } else {
-              lastLetter = null;
-              holdStart = 0;
+              tf.dispose(out);
+            } finally {
+              input.dispose();
             }
-            tf.dispose(out);
-          } finally {
-            input.dispose();
+          } else {
+            setPred("-");
+            setConf("-");
+            lastLetter = null;
+            holdStart = 0;
           }
         });
 
-        const Camera = window.Camera;
-        cameraRef.current = new Camera(video, {
-          onFrame: async () => {
+        // 6) Start camera (try Camera API, fallback manual loop)
+        try {
+          const cam = new globalThis.Camera(video, {
+            onFrame: async () => {
+              await hands.send({ image: video });
+            },
+          });
+          cameraRef.current = cam;
+          await cam.start();
+        } catch {
+          usedManual = true;
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+            audio: false,
+          });
+          video.srcObject = stream;
+          await video.play();
+          const loop = async () => {
             await hands.send({ image: video });
-          },
-        });
+            rafIdRef.current = requestAnimationFrame(loop);
+          };
+          loop();
+          cameraRef.current = {
+            stop() {
+              cancelAnimationFrame(rafIdRef.current);
+              stream.getTracks().forEach((t) => t.stop());
+            },
+          };
+        }
 
-        handsRef.current = hands;
-
-        await cameraRef.current.start();
-        if (video.readyState >= 2) setCanvasSizeToVideo();
-        else video.onloadedmetadata = setCanvasSizeToVideo;
-
-        const onResize = () => setCanvasSizeToVideo();
-        window.addEventListener("resize", onResize);
+        const syncSize = () => setSize();
+        if (video.readyState >= 2) setSize();
+        video.addEventListener("loadedmetadata", syncSize);
+        video.addEventListener("canplay", syncSize);
+        window.addEventListener("resize", syncSize);
 
         if (!stopped) setLoading(false);
 
-        return () => window.removeEventListener("resize", onResize);
+        return () => {
+          video.removeEventListener("loadedmetadata", syncSize);
+          video.removeEventListener("canplay", syncSize);
+          window.removeEventListener("resize", syncSize);
+          if (usedManual) cameraRef.current?.stop?.();
+        };
       } catch (err) {
-        console.error("Practice boot error:", err);
-        if (!stopped) setLoading(false);
+        console.error(err);
+        setFatal(err?.message || "Gagal memuat MediaPipe/TFJS.");
+        setLoading(false);
       }
     }
 
@@ -280,13 +313,13 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
     return () => {
       stopped = true;
       try {
-        cameraRef.current?.stop();
-        handsRef.current?.close();
+        cameraRef.current?.stop?.();
+        handsRef.current?.close?.();
         const stream = videoRef.current?.srcObject;
-        stream?.getTracks?.forEach((t) => t.stop());
+        stream?.getTracks?.().forEach((t) => t.stop());
       } catch {}
     };
-  }, []);
+  }, []); // eslint-disable-line
 
   function nextStep() {
     if (isWordsMode) {
@@ -294,21 +327,13 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
       const nextLetter = letterIdx + 1;
       if (nextLetter < word.length) {
         setLetterIdx(nextLetter);
-        setModuleProgress(moduleId, {
-          letterIdx: nextLetter,
-          wordIdx,
-          completed: false,
-        });
+        setModuleProgress(moduleId, { letterIdx: nextLetter, wordIdx, completed: false });
       } else {
         const nextWord = wordIdx + 1;
         if (nextWord < (words?.length || 0)) {
           setWordIdx(nextWord);
           setLetterIdx(0);
-          setModuleProgress(moduleId, {
-            wordIdx: nextWord,
-            letterIdx: 0,
-            completed: false,
-          });
+          setModuleProgress(moduleId, { wordIdx: nextWord, letterIdx: 0, completed: false });
         } else {
           setDone(true);
           setModuleProgress(moduleId, { completed: true });
@@ -329,8 +354,6 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
     }
   }
 
-  const targetWord = isWordsMode ? words?.[wordIdx] || "" : null;
-
   return (
     <div className="relative mx-auto max-w-7xl px-6 py-6">
       {/* Header */}
@@ -345,12 +368,10 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
         <div />
       </div>
 
-      <h2 className="mt-4 mb-6 text-center text-4xl font-bold text-white">
-        {title}
-      </h2>
+      <h2 className="mt-4 mb-6 text-center text-4xl font-bold text-white">{title}</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-        {/* Kiri: webcam (kedua canvas DIMIRROR via CSS) */}
+        {/* Webcam (mirror via CSS wrapper) */}
         <div className="lg:col-span-7">
           <div className="relative rounded-[24px] overflow-hidden bg-white/10 ring-1 ring-white/20">
             <div className="relative [transform:scaleX(-1)] select-none">
@@ -361,7 +382,7 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
           </div>
         </div>
 
-        {/* Kanan: target */}
+        {/* Target */}
         <div className="lg:col-span-5">
           <div className="rounded-[24px] bg-white/8 ring-1 ring-white/20 p-6 flex items-center justify-center">
             <div className="relative w-[360px] max-w-full aspect-[16/10] rounded-[22px] bg-[#151F52] grid place-items-center overflow-hidden">
@@ -369,6 +390,7 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
                 src={`/practice/letters/${targetLetter}.png`}
                 alt={`Target ${targetLetter}`}
                 fill
+                sizes="(max-width: 640px) 100vw, 360px"
                 className="object-contain p-6"
                 priority
               />
@@ -383,11 +405,11 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
         </div>
       </div>
 
-      {/* Display bawah */}
+      {/* Bawah */}
       <div className="mt-10 text-center">
         {isWordsMode ? (
           <div className="flex items-center justify-center gap-2 text-4xl font-bold text-white">
-            {(words?.[wordIdx] || "").split("").map((ch, i) => (
+            {targetWord?.split("").map((ch, i) => (
               <span
                 key={`${ch}-${i}`}
                 className={
@@ -451,10 +473,17 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
         </div>
       )}
 
-      {loading && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30">
-          <div className="rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/20 text-white">
-            Memuat kamera & model…
+      {(loading || fatal) && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 px-4">
+          <div className="rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/20 text-white text-center max-w-lg">
+            {fatal ? (
+              <>
+                <div className="font-semibold mb-1">Gagal memuat</div>
+                <div className="text-white/90">{fatal}</div>
+              </>
+            ) : (
+              "Memuat kamera & model…"
+            )}
           </div>
         </div>
       )}
@@ -462,13 +491,37 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
   );
 }
 
-// ===== Helpers =====
+// ---------- media access polyfill ----------
+async function ensureMediaAccess() {
+  if (!navigator.mediaDevices) navigator.mediaDevices = {};
+  if (!navigator.mediaDevices.getUserMedia) {
+    const legacy =
+      navigator.getUserMedia ||
+      navigator.webkitGetUserMedia ||
+      navigator.mozGetUserMedia;
+    if (legacy) {
+      navigator.mediaDevices.getUserMedia = (c) =>
+        new Promise((res, rej) => legacy.call(navigator, c, res, rej));
+    }
+  }
+  if (!navigator.mediaDevices.getUserMedia) {
+    const isLocalhost =
+      ["localhost", "127.0.0.1"].includes(location.hostname) ||
+      location.hostname.endsWith(".localhost");
+    const isSecure = window.isSecureContext || location.protocol === "https:";
+    const msg =
+      isLocalhost || isSecure
+        ? "Browser ini tidak mendukung kamera."
+        : "Kamera membutuhkan HTTPS atau localhost.";
+    const err = new Error(msg);
+    err.code = "INSECURE_CONTEXT";
+    throw err;
+  }
+}
+
+// ---------- features ----------
 function normalizeHand(landmarks, wrist) {
-  return landmarks.map((lm) => [
-    lm.x - wrist.x,
-    lm.y - wrist.y,
-    lm.z - wrist.z,
-  ]);
+  return landmarks.map((lm) => [lm.x - wrist.x, lm.y - wrist.y, lm.z - wrist.z]);
 }
 function toFeatures(all) {
   let feats = [];
@@ -486,3 +539,4 @@ function toFeatures(all) {
   if (feats.length !== 126) feats = Array(126).fill(0);
   return feats;
 }
+  
