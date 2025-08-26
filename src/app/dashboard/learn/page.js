@@ -72,15 +72,16 @@ function LearnTile({ letter, onClick }) {
         hover:ring-white/35 hover:shadow-[0_10px_24px_rgba(0,0,0,.25)]
         transition-colors
         text-white
+        cursor-pointer
       "
       aria-label={`Lihat huruf ${letter}`}
     >
       {/* grid: 70% preview + 30% label */}
       <div className="grid h-full grid-rows-[7fr_3fr] gap-2">
         {/* preview area */}
-        <div className="relative rounded-[20px] bg-[#151F52] overflow-hidden">
+        <div className="relative rounded-[20px] bg-[#F9F6EE] overflow-hidden">
           <Image
-            src="/learn/imageDummyLearn.png"
+            src={`/letters/${letter}.png`}
             alt={`Isyarat huruf ${letter}`}
             fill
             className="object-contain"
@@ -156,9 +157,9 @@ function LetterViewerModal({ letter, onClose }) {
 
           {/* Konten (panel terang untuk gambar) */}
           <div className="p-5 md:p-7">
-            <div className="relative w-full rounded-2xl bg-white/85 overflow-hidden min-h-[55vh] md:min-h-[80vh]">
+            <div className="relative w-full rounded-2xl bg-[#F9F6EE] overflow-hidden min-h-[55vh] md:min-h-[80vh]">
               <Image
-                src="/learn/imageDummyLearn.png"
+                src={`/letters/${letter}.png`}
                 alt={`Isyarat huruf ${letter}`}
                 fill
                 className="object-contain"

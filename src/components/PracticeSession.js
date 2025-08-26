@@ -1,177 +1,118 @@
-// src/components/PracticeSession.js
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { getModuleProgress, setModuleProgress } from "@/lib/progress";
+import { useEffect, useRef, useState } from "react";
 
-const HOLD_MS = 1200;
-const CONF_TH = 0.8;
-const LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+/* ===== Konfigurasi ===== */
+const HANDS_VERSION = "0.4.1675469240"; // stabil di jsDelivr
+const TFJS_VERSION  = "4.14.0";         // sama dengan contoh HTML
+const MODEL_URL     = "/ai/model.json"; // pastikan public/ai/ berisi model.json + shard .bin
 
-// ---------- script loader helpers ----------
-function loadScriptOnce(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+/* ===== Util ===== */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const waitFor = async (fn, timeout = 6000, step = 50) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    const v = fn();
+    if (v) return v;
+    await sleep(step);
+  }
+  return null;
+};
+const loadScriptOnce = (src) =>
+  new Promise((resolve, reject) => {
+    if (document.querySelector(`script[data-key="${src}"]`)) return resolve();
     const s = document.createElement("script");
-    s.src = src;
     s.async = true;
+    s.defer = true;
+    s.src = src;
+    s.crossOrigin = "anonymous";
+    s.dataset.key = src;
     s.onload = resolve;
     s.onerror = () => reject(new Error(`Failed to load ${src}`));
     document.head.appendChild(s);
   });
+
+async function ensureCDNs() {
+  await loadScriptOnce(`https://cdn.jsdelivr.net/npm/@mediapipe/hands@${HANDS_VERSION}/hands.min.js`);
+  await loadScriptOnce("https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js");
+  await loadScriptOnce("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js");
+  await loadScriptOnce(`https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@${TFJS_VERSION}/dist/tf.min.js`);
+  await waitFor(() => window.Hands && window.drawConnectors && window.HAND_CONNECTIONS && window.Camera && window.tf);
 }
 
-function waitForGlobal(key, timeout = 5000) {
-  const start = performance.now();
-  return new Promise((resolve, reject) => {
-    (function tick() {
-      if (globalThis[key]) return resolve(globalThis[key]);
-      if (performance.now() - start > timeout)
-        return reject(new Error(`Global "${key}" not found`));
-      requestAnimationFrame(tick);
-    })();
-  });
+/* ==== Fitur 126D persis HTML ==== */
+function normalizeLandmarks(landmarks, wrist) {
+  return landmarks.map((lm) => [lm.x - wrist.x, lm.y - wrist.y, lm.z - wrist.z]);
 }
-
-/** Singleton loader untuk MediaPipe UMD dari /public */
-async function ensureMediaPipe(base = "/mediapipe") {
-  if (!globalThis.__mpReady) {
-    globalThis.__mpReady = (async () => {
-      await loadScriptOnce(`${base}/drawing_utils/drawing_utils.js`);
-      await loadScriptOnce(`${base}/camera_utils/camera_utils.js`);
-      await loadScriptOnce(`${base}/hands/hands.js`);
-      // tunggu global-nya benar2 ada (hindari race onload)
-      await waitForGlobal("drawConnectors");
-      await waitForGlobal("drawLandmarks");
-      await waitForGlobal("Camera");
-      await waitForGlobal("Hands");
-      // sanity log
-      const diag = {
-        Hands: !!globalThis.Hands,
-        Camera: !!globalThis.Camera,
-        drawConnectors: !!globalThis.drawConnectors,
-        drawLandmarks: !!globalThis.drawLandmarks,
-      };
-      console.log("[MP ready]", diag);
-      if (!diag.Hands) throw new Error("Hands global missing after load.");
-      return diag;
-    })();
+function toFeatures(landmarksArray) {
+  let features = [];
+  if (landmarksArray.length === 1) {
+    const left = Array(63).fill(0);
+    features.push(...left);
+    const right = normalizeLandmarks(landmarksArray[0], landmarksArray[0][0]);
+    right.forEach((c) => features.push(...c));
+  } else if (landmarksArray.length === 2) {
+    const sorted = [...landmarksArray].sort((a, b) => a[0].x - b[0].x);
+    const left  = normalizeLandmarks(sorted[0], sorted[0][0]);
+    const right = normalizeLandmarks(sorted[1], sorted[1][0]);
+    left.forEach((c) => features.push(...c));
+    right.forEach((c) => features.push(...c));
   }
-  return globalThis.__mpReady;
+  if (features.length !== 126) features = Array(126).fill(0);
+  return window.tf.tensor2d([features], [1, 126]);
 }
 
-// ---------- component ----------
-export default function PracticeSession({ moduleId, title, letters, words }) {
-  const router = useRouter();
-  const isWordsMode = Array.isArray(words);
-
-  // progress
-  const [idx, setIdx] = useState(0);
-  const [wordIdx, setWordIdx] = useState(0);
-  const [letterIdx, setLetterIdx] = useState(0);
-  const [done, setDone] = useState(false);
-
-  // ui
-  const [pred, setPred] = useState("-");
-  const [conf, setConf] = useState("-");
-  const [loading, setLoading] = useState(true);
-  const [fatal, setFatal] = useState("");
-
-  // refs
+export default function PracticeSession() {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const guideRef = useRef(null);
+  const camCanvasRef = useRef(null);
+  const lmkCanvasRef = useRef(null);
+
   const handsRef = useRef(null);
   const cameraRef = useRef(null);
   const modelRef = useRef(null);
-  const rafIdRef = useRef(0);
 
-  // restore progress
-  useEffect(() => {
-    const p = getModuleProgress(moduleId);
-    if (isWordsMode) {
-      setWordIdx(p.wordIdx || 0);
-      setLetterIdx(p.letterIdx || 0);
-      setDone(!!p.completed);
-    } else {
-      setIdx(p.index || 0);
-      setDone(!!p.completed);
-    }
-  }, [moduleId, isWordsMode]);
+  const mountedRef = useRef(false);
 
-  // target
-  const targetLetter = useMemo(() => {
-    if (isWordsMode) {
-      const w = words?.[wordIdx] || "";
-      return (w[letterIdx] || "A").toUpperCase();
-    }
-    return (letters?.[idx] || "A").toUpperCase();
-  }, [isWordsMode, words, wordIdx, letterIdx, letters, idx]);
-
-  const targetWord = useMemo(
-    () => (isWordsMode ? words?.[wordIdx] || "" : null),
-    [isWordsMode, words, wordIdx]
-  );
+  const [pred, setPred] = useState("-");
+  const [conf, setConf] = useState("-");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let stopped = false;
-    let usedManual = false;
+    if (mountedRef.current) return;
+    mountedRef.current = true;
 
-    async function boot() {
+    let cancelled = false;
+
+    (async () => {
       try {
-        setFatal("");
         setLoading(true);
 
-        // 1) TFJS (ESM) — stable
-        const tf = await import("@tensorflow/tfjs");
-        await tf.ready();
-        try {
-          await tf.setBackend("webgl");
-        } catch {
-          await tf.setBackend("cpu");
-        }
-
-        // 2) MediaPipe UMD dari /public + waitForGlobal
-        await ensureMediaPipe("/mediapipe");
-
-        // 3) permissions & getUserMedia polyfill
-        await ensureMediaAccess();
-
-        // 4) model TFJS
-        modelRef.current = await tf.loadGraphModel("/ai/model.json");
+        // 1) Muat script CDN
+        await ensureCDNs();
+        if (cancelled) return;
 
         const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        const gCanvas = guideRef.current;
-        const gctx = gCanvas.getContext("2d");
+        const camCan = camCanvasRef.current;
+        const camCtx = camCan.getContext("2d");
+        const lmkCan = lmkCanvasRef.current;
+        const lmkCtx = lmkCan.getContext("2d");
 
-        // DPR-aware canvas sizing
-        const setSize = () => {
-          const vw = video.videoWidth || 640;
-          const vh = video.videoHeight || 480;
-          const dpr = window.devicePixelRatio || 1;
+        // 2) Set ukuran sama seperti HTML
+        camCan.width = lmkCan.width = 640;
+        camCan.height = lmkCan.height = 480;
 
-          canvas.width = Math.round(vw * dpr);
-          canvas.height = Math.round(vh * dpr);
-          gCanvas.width = canvas.width;
-          gCanvas.height = canvas.height;
+        // 3) Muat model
+        try {
+          modelRef.current = await window.tf.loadGraphModel(MODEL_URL);
+        } catch (e) {
+          console.error("Gagal load model TFJS:", e);
+          throw e;
+        }
+        if (cancelled) return;
 
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          gctx.lineWidth = 2 * dpr;
-
-          canvas.style.width = `${vw}px`;
-          canvas.style.height = `${vh}px`;
-          gCanvas.style.width = `${vw}px`;
-          gCanvas.style.height = `${vh}px`;
-        };
-
-        // 5) Hands instance dengan locateFile ke /public
-        const hands = new globalThis.Hands({
-          locateFile: (f) => `/mediapipe/hands/${f}`,
+        // 4) Inisialisasi Hands (semua asset via CDN → hilangkan error *.data/wasm)
+        const hands = new window.Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${HANDS_VERSION}/${file}`,
         });
         hands.setOptions({
           maxNumHands: 2,
@@ -181,362 +122,195 @@ export default function PracticeSession({ moduleId, title, letters, words }) {
         });
         handsRef.current = hands;
 
-        let lastLetter = null;
-        let holdStart = 0;
-        let stepping = false;
+        // 5) Prediksi + gambar landmark di onResults (JANGAN gambar frame kamera di sini)
+        const LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const CONFIDENCE_TH = 0.8;
 
-        hands.onResults(async (results) => {
-          // resync ukuran jika perlu
-          const needW = Math.round(
-            (video.videoWidth || 640) * (window.devicePixelRatio || 1)
-          );
-          if (canvas.width !== needW) setSize();
-
-          // draw video
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-
-          // draw landmarks (DPR-aware)
-          gctx.clearRect(0, 0, gCanvas.width, gCanvas.height);
-          if (
-            results.multiHandLandmarks &&
-            results.multiHandLandmarks.length > 0 &&
-            modelRef.current
-          ) {
-            for (const lms of results.multiHandLandmarks) {
-              globalThis.drawConnectors(gctx, lms, globalThis.HAND_CONNECTIONS, {
-                color: "#12057d",
-                lineWidth: gctx.lineWidth,
-              });
-              globalThis.drawLandmarks(gctx, lms, {
-                color: "#dc3767",
-                radius: 2 * (window.devicePixelRatio || 1),
-              });
+        hands.onResults((results) => {
+          if (cancelled) return;
+          // Bersihkan & gambar landmark di overlay
+          lmkCtx.clearRect(0, 0, lmkCan.width, lmkCan.height);
+          if (results.multiHandLandmarks?.length) {
+            for (const lm of results.multiHandLandmarks) {
+              window.drawConnectors(lmkCtx, lm, window.HAND_CONNECTIONS, { color: "#12057d", lineWidth: 2 });
+              window.drawLandmarks(lmkCtx, lm, { color: "#dc3767", radius: 2 });
             }
+          }
 
-            const feats = toFeatures(results.multiHandLandmarks);
-            const input = tf.tensor2d([feats], [1, 126]);
+          // Prediksi model (opsional jika ada landmark)
+          if (results.multiHandLandmarks?.length && modelRef.current) {
+            const input = toFeatures(results.multiHandLandmarks);
             try {
               const out = modelRef.current.predict(input);
               const arr = out.arraySync()[0];
               const maxV = Math.max(...arr);
-              const cls = arr.indexOf(maxV);
-              const letter = LABELS[cls];
-
+              const letter = LABELS[arr.indexOf(maxV)] ?? "-";
               setPred(letter);
               setConf((maxV * 100).toFixed(1));
-
-              const now = Date.now();
-              if (maxV >= CONF_TH) {
-                if (lastLetter === letter) {
-                  if (!holdStart) holdStart = now;
-                  if (!stepping && now - holdStart >= HOLD_MS && letter === targetLetter) {
-                    stepping = true;
-                    nextStep();
-                    setTimeout(() => (stepping = false), 250);
-                    lastLetter = null;
-                    holdStart = 0;
-                  }
-                } else {
-                  lastLetter = letter;
-                  holdStart = now;
-                }
-              } else {
-                lastLetter = null;
-                holdStart = 0;
-              }
-              tf.dispose(out);
+              window.tf.dispose(out);
+            } catch (e) {
+              setPred("-");
+              setConf("-");
             } finally {
               input.dispose();
             }
           } else {
             setPred("-");
             setConf("-");
-            lastLetter = null;
-            holdStart = 0;
           }
         });
 
-        // 6) Start camera (try Camera API, fallback manual loop)
+        // 6) Mulai kamera – gambar frame kamera **di onFrame**, agar selalu tampil walau Hands belum siap
+        cameraRef.current = new window.Camera(video, {
+          onFrame: async () => {
+            // gambar kamera ke canvas setiap frame (mirror di style)
+            try {
+              camCtx.clearRect(0, 0, camCan.width, camCan.height);
+              camCtx.drawImage(video, 0, 0, camCan.width, camCan.height);
+            } catch { /* noop */ }
+
+            // kirim ke Hands (jika assets belum siap, abaikan error supaya loop lanjut)
+            try {
+              await handsRef.current.send({ image: video });
+            } catch { /* skip frame */ }
+          },
+          width: 640,
+          height: 480,
+          facingMode: "user",
+        });
+
+        // Pastikan metadata siap lalu play(); handle AbortError
+        const ensureMetadata = async () => {
+          if (video.readyState >= 2) return;
+          await new Promise((res) => {
+            const h = () => { video.onloadedmetadata = null; res(); };
+            video.onloadedmetadata = h;
+          });
+        };
+
+        await cameraRef.current.start();
+        await ensureMetadata();
         try {
-          const cam = new globalThis.Camera(video, {
-            onFrame: async () => {
-              await hands.send({ image: video });
-            },
-          });
-          cameraRef.current = cam;
-          await cam.start();
-        } catch {
-          usedManual = true;
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user" },
-            audio: false,
-          });
-          video.srcObject = stream;
           await video.play();
-          const loop = async () => {
-            await hands.send({ image: video });
-            rafIdRef.current = requestAnimationFrame(loop);
-          };
-          loop();
-          cameraRef.current = {
-            stop() {
-              cancelAnimationFrame(rafIdRef.current);
-              stream.getTracks().forEach((t) => t.stop());
-            },
-          };
+        } catch (err) {
+          if (err?.name === "AbortError") {
+            await sleep(120);
+            await video.play();
+          }
         }
 
-        const syncSize = () => setSize();
-        if (video.readyState >= 2) setSize();
-        video.addEventListener("loadedmetadata", syncSize);
-        video.addEventListener("canplay", syncSize);
-        window.addEventListener("resize", syncSize);
-
-        if (!stopped) setLoading(false);
-
-        return () => {
-          video.removeEventListener("loadedmetadata", syncSize);
-          video.removeEventListener("canplay", syncSize);
-          window.removeEventListener("resize", syncSize);
-          if (usedManual) cameraRef.current?.stop?.();
-        };
-      } catch (err) {
-        console.error(err);
-        setFatal(err?.message || "Gagal memuat MediaPipe/TFJS.");
-        setLoading(false);
+        if (!cancelled) setLoading(false);
+      } catch (e) {
+        console.error("Init error:", e);
+        if (!cancelled) setLoading(false);
       }
-    }
-
-    boot();
+    })();
 
     return () => {
-      stopped = true;
-      try {
-        cameraRef.current?.stop?.();
-        handsRef.current?.close?.();
-        const stream = videoRef.current?.srcObject;
-        stream?.getTracks?.().forEach((t) => t.stop());
-      } catch {}
+      cancelled = true;
+      try { handsRef.current?.close?.(); } catch {}
+      try { cameraRef.current?.stop?.(); } catch {}
+      const v = videoRef.current;
+      if (v?.srcObject) {
+        try { v.pause(); } catch {}
+        try { v.srcObject.getTracks().forEach((t) => t.stop()); } catch {}
+        v.srcObject = null;
+      }
     };
-  }, []); // eslint-disable-line
-
-  function nextStep() {
-    if (isWordsMode) {
-      const word = words?.[wordIdx] || "";
-      const nextLetter = letterIdx + 1;
-      if (nextLetter < word.length) {
-        setLetterIdx(nextLetter);
-        setModuleProgress(moduleId, { letterIdx: nextLetter, wordIdx, completed: false });
-      } else {
-        const nextWord = wordIdx + 1;
-        if (nextWord < (words?.length || 0)) {
-          setWordIdx(nextWord);
-          setLetterIdx(0);
-          setModuleProgress(moduleId, { wordIdx: nextWord, letterIdx: 0, completed: false });
-        } else {
-          setDone(true);
-          setModuleProgress(moduleId, { completed: true });
-        }
-      }
-    } else {
-      const next = idx + 1;
-      if (next < (letters?.length || 0)) {
-        setIdx(next);
-        setModuleProgress(moduleId, { index: next, completed: false });
-      } else {
-        setDone(true);
-        setModuleProgress(moduleId, {
-          index: (letters?.length || 1) - 1,
-          completed: true,
-        });
-      }
-    }
-  }
+  }, []);
 
   return (
-    <div className="relative mx-auto max-w-7xl px-6 py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => router.push("/dashboard/practice")}
-          className="rounded-xl border border-white/30 px-3 py-2 text-white/90 hover:bg-white/10"
+    <div style={{ minHeight: "100vh", background: "#111", color: "#fff" }}>
+      <h1 style={{ marginTop: 20, textAlign: "center" }}>Deteksi Bahasa Isyarat</h1>
+
+      {/* video disembunyikan (sumber frame) */}
+      <video ref={videoRef} autoPlay playsInline muted style={{ display: "none" }} />
+
+      {/* canvas kamera – SELALU digambar dari onFrame */}
+      <canvas
+        ref={camCanvasRef}
+        style={{
+          position: "absolute",
+          top: 80,
+          left: "50%",
+          width: 640,
+          height: 480,
+          borderRadius: 10,
+          transform: "scale(-1, 1) translateX(50%)",
+        }}
+      />
+      {/* overlay landmark */}
+      <canvas
+        ref={lmkCanvasRef}
+        style={{
+          position: "absolute",
+          top: 80,
+          left: "50%",
+          width: 640,
+          height: 480,
+          borderRadius: 10,
+          transform: "scale(-1, 1) translateX(50%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* UI status */}
+      <div
+        style={{
+          position: "absolute",
+          top: 100,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 10,
+          fontSize: 24,
+          fontWeight: "bold",
+          color: "gold",
+          background: "rgba(0,0,0,.5)",
+          padding: "8px 16px",
+          borderRadius: 10,
+        }}
+      >
+        Predicted: {pred}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 145,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 10,
+          fontSize: 16,
+          background: "rgba(0,0,0,.5)",
+          padding: "4px 8px",
+          borderRadius: 5,
+        }}
+      >
+        Confidence: {conf === "-" ? "-" : `${conf}%`}
+      </div>
+
+      {loading && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(0,0,0,.35)",
+            zIndex: 50,
+          }}
         >
-          Exit
-        </button>
-        <div className="text-sm text-white/80">Tantangan Rangkai Kata</div>
-        <div />
-      </div>
-
-      <h2 className="mt-4 mb-6 text-center text-4xl font-bold text-white">{title}</h2>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-        {/* Webcam (mirror via CSS wrapper) */}
-        <div className="lg:col-span-7">
-          <div className="relative rounded-[24px] overflow-hidden bg-white/10 ring-1 ring-white/20">
-            <div className="relative [transform:scaleX(-1)] select-none">
-              <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-              <canvas ref={canvasRef} className="block w-full h-auto" />
-              <canvas ref={guideRef} className="pointer-events-none absolute inset-0" />
-            </div>
-          </div>
-        </div>
-
-        {/* Target */}
-        <div className="lg:col-span-5">
-          <div className="rounded-[24px] bg-white/8 ring-1 ring-white/20 p-6 flex items-center justify-center">
-            <div className="relative w-[360px] max-w-full aspect-[16/10] rounded-[22px] bg-[#151F52] grid place-items-center overflow-hidden">
-              <Image
-                src={`/practice/letters/${targetLetter}.png`}
-                alt={`Target ${targetLetter}`}
-                fill
-                sizes="(max-width: 640px) 100vw, 360px"
-                className="object-contain p-6"
-                priority
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 text-white/80 text-sm">
-            Predicted: <span className="font-semibold text-white">{pred}</span>
-            &nbsp;|&nbsp; Confidence:{" "}
-            <span className="font-semibold text-white">{conf}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Bawah */}
-      <div className="mt-10 text-center">
-        {isWordsMode ? (
-          <div className="flex items-center justify-center gap-2 text-4xl font-bold text-white">
-            {targetWord?.split("").map((ch, i) => (
-              <span
-                key={`${ch}-${i}`}
-                className={
-                  i < letterIdx
-                    ? "text-white/35"
-                    : i === letterIdx
-                    ? "text-white"
-                    : "text-white/70"
-                }
-              >
-                {ch}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <div className="text-5xl font-bold text-white/95">
-            {(targetLetter || "A").toLowerCase()}
-          </div>
-        )}
-      </div>
-
-      {/* Popup selesai */}
-      {done && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40">
-          <div className="mx-4 max-w-2xl w-full rounded-[28px] overflow-hidden text-white shadow-2xl">
-            <div className="bg-[#1A2A80] px-6 py-4 text-lg font-semibold">
-              {title}
-            </div>
-            <div className="bg-[#0E1A4A] px-6 py-10 text-center text-2xl leading-relaxed">
-              Selamat, kamu telah menyelesaikan modul ini dengan baik
-            </div>
-            <div className="bg-[#0E1A4A] px-6 pb-6 flex items-center justify-between">
-              <button
-                onClick={() => router.push("/dashboard/practice")}
-                className="rounded-xl border border-white/30 px-4 py-2 hover:bg-white/10"
-              >
-                Exit
-              </button>
-              <button
-                onClick={() => {
-                  setDone(false);
-                  if (isWordsMode) {
-                    setWordIdx(0);
-                    setLetterIdx(0);
-                    setModuleProgress(moduleId, {
-                      wordIdx: 0,
-                      letterIdx: 0,
-                      completed: false,
-                    });
-                  } else {
-                    setIdx(0);
-                    setModuleProgress(moduleId, { index: 0, completed: false });
-                  }
-                }}
-                className="rounded-xl border border-white/30 px-4 py-2 hover:bg-white/10"
-              >
-                Ulangi
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(loading || fatal) && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 px-4">
-          <div className="rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/20 text-white text-center max-w-lg">
-            {fatal ? (
-              <>
-                <div className="font-semibold mb-1">Gagal memuat</div>
-                <div className="text-white/90">{fatal}</div>
-              </>
-            ) : (
-              "Memuat kamera & model…"
-            )}
+          <div
+            style={{
+              background: "rgba(255,255,255,.08)",
+              padding: "10px 16px",
+              border: "1px solid rgba(255,255,255,.2)",
+              borderRadius: 12,
+            }}
+          >
+            Memuat kamera & model…
           </div>
         </div>
       )}
     </div>
   );
 }
-
-// ---------- media access polyfill ----------
-async function ensureMediaAccess() {
-  if (!navigator.mediaDevices) navigator.mediaDevices = {};
-  if (!navigator.mediaDevices.getUserMedia) {
-    const legacy =
-      navigator.getUserMedia ||
-      navigator.webkitGetUserMedia ||
-      navigator.mozGetUserMedia;
-    if (legacy) {
-      navigator.mediaDevices.getUserMedia = (c) =>
-        new Promise((res, rej) => legacy.call(navigator, c, res, rej));
-    }
-  }
-  if (!navigator.mediaDevices.getUserMedia) {
-    const isLocalhost =
-      ["localhost", "127.0.0.1"].includes(location.hostname) ||
-      location.hostname.endsWith(".localhost");
-    const isSecure = window.isSecureContext || location.protocol === "https:";
-    const msg =
-      isLocalhost || isSecure
-        ? "Browser ini tidak mendukung kamera."
-        : "Kamera membutuhkan HTTPS atau localhost.";
-    const err = new Error(msg);
-    err.code = "INSECURE_CONTEXT";
-    throw err;
-  }
-}
-
-// ---------- features ----------
-function normalizeHand(landmarks, wrist) {
-  return landmarks.map((lm) => [lm.x - wrist.x, lm.y - wrist.y, lm.z - wrist.z]);
-}
-function toFeatures(all) {
-  let feats = [];
-  if (all.length === 1) {
-    const right = normalizeHand(all[0], all[0][0]);
-    feats.push(...Array(63).fill(0));
-    right.forEach((c) => feats.push(...c));
-  } else if (all.length >= 2) {
-    const sorted = [...all].sort((a, b) => a[0].x - b[0].x);
-    const left = normalizeHand(sorted[0], sorted[0][0]);
-    const right = normalizeHand(sorted[1], sorted[1][0]);
-    left.forEach((c) => feats.push(...c));
-    right.forEach((c) => feats.push(...c));
-  }
-  if (feats.length !== 126) feats = Array(126).fill(0);
-  return feats;
-}
-  
