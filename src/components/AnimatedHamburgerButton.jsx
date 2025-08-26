@@ -5,7 +5,7 @@ import { MotionConfig, motion } from "framer-motion";
 
 export default function AnimatedHamburgerButton({
   onToggle,
-  className = "",
+  className = "cursor-pointer",
   size = "h-10 w-10",
   initialOpen = false,
 }) {

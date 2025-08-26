@@ -62,7 +62,7 @@ export default function DashboardSidebar({ onExit }) {
       <button
         onClick={onExit}
         className="m-4 mt-auto flex items-center gap-3 px-3 py-3 rounded-xl
-                   text-white/90 hover:bg-white/10 ring-1 ring-white/10"
+                   text-white/90 hover:bg-white/10 ring-1 ring-white/10 cursor-pointer"
       >
         <LogOut size={18} />
         <span className={`${quicksand.className} font-semibold`}>Exit</span>
