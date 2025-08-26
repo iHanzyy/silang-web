@@ -1,5 +1,5 @@
 // Server Component
-import PracticeSession from "@/components/PracticeSession";
+import PracticeSession from "@/components/practice/PracticeSession";
 
 const MODULES = {
   "mod-1": { title: "Modul 1: A - E", letters: ["A","B","C","D","E"] },

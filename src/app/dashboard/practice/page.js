@@ -1,7 +1,7 @@
 // src/app/dashboard/practice/page.js
 "use client";
 
-import PracticeModuleCard from "@/components/dashboard/PracticeModuleCard";
+import PracticeModuleCard from "@/components/practice/PracticeModuleCard";
 import { orbitron, quicksand } from "@/lib/fonts";
 import { useEffect, useState } from "react";
 import {
