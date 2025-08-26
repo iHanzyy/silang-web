@@ -69,10 +69,13 @@ function LearnTile({ letter, onClick }) {
       className="
         group relative aspect-square p-2 rounded-2xl
         ring-1 ring-white/18 bg-[#1A2A80]
-        hover:ring-white/35 hover:shadow-[0_10px_24px_rgba(0,0,0,.25)]
-        transition-colors
+        hover:ring-white/35 
+        hover:shadow-[0_10px_24px_rgba(0,0,0,.25)]
+        hover:scale-105
+        transition-all duration-500 ease-in-out
         text-white
         cursor-pointer
+        holographic-effect
       "
       aria-label={`Lihat huruf ${letter}`}
     >
