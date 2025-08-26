@@ -50,3 +50,41 @@ body {
   position: relative;
   z-index: 2;
 }
+
+/* Social Icon Animation */
+.social-icon-wrapper {
+  z-index: 1;
+}
+
+.social-icon-bg {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: 0.5s;
+  z-index: 2;
+}
+
+.social-icon-wrapper:hover .social-icon-bg {
+  top: 0;
+}
+
+/* Specific backgrounds for different platforms */
+.instagram-bg {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.github-bg {
+  background: linear-gradient(45deg, #0d1117, #161b22);
+}
+
+/* Icon rotation and color change */
+.social-icon {
+  color: #fff;
+}
+
+.social-icon-wrapper:hover .social-icon {
+  transform: rotateY(360deg);
+}

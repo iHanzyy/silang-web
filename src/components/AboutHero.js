@@ -148,19 +148,26 @@ function TeamCard({ imgSrc, imgAlt, name, role, quote, igHref, ghHref }) {
 }
 
 function SocialCircle({ href = "#", label, children }) {
+  // Determine which platform based on the label
+  const platformClass = label.toLowerCase() === "instagram" ? "instagram-bg" : "github-bg";
+  
   return (
     <Link
       href={href}
       aria-label={label}
       className="
+        social-icon-wrapper
         inline-flex h-11 w-11 items-center justify-center
         rounded-full bg-black/25 backdrop-blur-md
         ring-2 ring-[#B2B0E8] text-white
-        hover:bg-black/35 hover:ring-[#C9C6F2]
         transition
+        relative overflow-hidden
       "
     >
-      {children}
+      <span className={`social-icon-bg ${platformClass}`}></span>
+      <span className="relative z-[3] transition-transform duration-500 social-icon">
+        {children}
+      </span>
     </Link>
   );
 }
