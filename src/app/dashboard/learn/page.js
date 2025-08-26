@@ -152,6 +152,7 @@ function LetterViewerModal({ letter, onClose }) {
                 inline-flex items-center gap-2 px-3 py-1.5
                 rounded-xl ring-1 ring-white/25 text-white
                 bg-white/10 hover:bg-white/14
+                cursor-pointer
               "
             >
               Exit <X size={16} aria-hidden />
