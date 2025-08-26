@@ -1,4 +1,3 @@
-// src/lib/practiceProgress.js
 "use client";
 
 export const STORAGE_KEY = "silang.practice.v1";
