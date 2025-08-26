@@ -1,12 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const CANVAS_W = 640;
 const CANVAS_H = 480;
 const HOLD_DURATION = 2000;
 const CONF_TH = 0.8;
 const LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+// Global flag to track if the component is mounted
+// This helps prevent memory leaks and resource conflicts
+let isMounted = false;
+
+// CRITICAL: Set up MediaPipe config before anything else
+if (typeof window !== "undefined") {
+  // Clear any existing Module first to avoid conflicts
+  window.Module = {
+    // This specific locateFile config is crucial
+    locateFile: function(path, prefix) {
+      if (path.endsWith('.data') || path.endsWith('.wasm')) {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${path}`;
+      }
+      return `${prefix}${path}`;
+    },
+    // Extra flag to prevent concurrent initialization
+    _isInitializing: false
+  };
+}
 
 export default function PracticeCamera({ onPrediction }) {
   const videoRef = useRef(null);
@@ -15,6 +36,9 @@ export default function PracticeCamera({ onPrediction }) {
   const modelRef = useRef(null);
   const handsRef = useRef(null);
   const cameraRef = useRef(null);
+  const instanceIdRef = useRef(`practice-camera-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+  
+  const router = useRouter();
   
   const lastLetterRef = useRef(null);
   const holdStartRef = useRef(0);
@@ -23,16 +47,17 @@ export default function PracticeCamera({ onPrediction }) {
   const [modelLoading, setModelLoading] = useState(true);
   const [cameraLoading, setCameraLoading] = useState(true);
   const [initError, setInitError] = useState(null);
+  const [initAttempt, setInitAttempt] = useState(0);
   const [pred, setPred] = useState("-");
   const [conf, setConf] = useState("-");
   const [okHold, setOkHold] = useState(false);
   
-  // Normalize landmarks - exactly as in HTML
+  // Function to normalize landmarks from hand detection
   function normalizeLandmarks(landmarks, wrist) {
     return landmarks.map(lm => [lm.x - wrist.x, lm.y - wrist.y, lm.z - wrist.z]);
   }
   
-  // Process landmarks - exactly as in HTML
+  // Process landmarks from MediaPipe Hands
   function processLandmarks(multiHandLandmarks) {
     let features = [];
     
@@ -114,42 +139,173 @@ export default function PracticeCamera({ onPrediction }) {
     }
   }
 
-  useEffect(() => {
-    // Script loading function
-    const loadScript = (src) => {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = false;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    };
+  // Aggressive cleanup of all resources
+  const cleanupResources = async () => {
+    console.log(`[${instanceIdRef.current}] Cleaning up resources...`);
     
-    // App initialization - closely matching the HTML implementation
+    // Try to stop camera processing first
+    if (cameraRef.current) {
+      try {
+        await cameraRef.current.stop();
+        console.log(`[${instanceIdRef.current}] Camera stopped`);
+      } catch (e) {
+        console.warn(`[${instanceIdRef.current}] Error stopping camera:`, e);
+      }
+      cameraRef.current = null;
+    }
+    
+    // Then close hands
+    if (handsRef.current) {
+      try {
+        await handsRef.current.close();
+        console.log(`[${instanceIdRef.current}] Hands closed`);
+      } catch (e) {
+        console.warn(`[${instanceIdRef.current}] Error closing hands:`, e);
+      }
+      handsRef.current = null;
+    }
+    
+    // Stop any ongoing media tracks
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => {
+          track.stop();
+          console.log(`[${instanceIdRef.current}] Track stopped:`, track.kind);
+        });
+      } catch (e) {
+        console.warn(`[${instanceIdRef.current}] Error stopping tracks:`, e);
+      }
+      
+      try {
+        videoRef.current.srcObject = null;
+        videoRef.current.load();
+      } catch (e) {
+        console.warn(`[${instanceIdRef.current}] Error clearing video:`, e);
+      }
+    }
+    
+    // Clear canvases
+    try {
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+      }
+      
+      if (landmarkCanvasRef.current) {
+        const ctx = landmarkCanvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+      }
+    } catch (e) {
+      console.warn(`[${instanceIdRef.current}] Error clearing canvases:`, e);
+    }
+    
+    // Reset state
+    setPred("-");
+    setConf("-");
+    setOkHold(false);
+    lastLetterRef.current = null;
+    holdStartRef.current = 0;
+    
+    // Extra cleanup for good measure
+    if (window.Module && window.Module._isInitializing) {
+      window.Module._isInitializing = false;
+    }
+  };
+
+  // Script loading with version check
+  const loadScript = (src) => {
+    return new Promise((resolve, reject) => {
+      // Check if script is already loaded
+      if (document.querySelector(`script[src="${src}"]`)) {
+        console.log(`[${instanceIdRef.current}] Script already exists: ${src}`);
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = false;
+      script.crossOrigin = "anonymous";
+      
+      script.onload = () => {
+        console.log(`[${instanceIdRef.current}] Script loaded: ${src}`);
+        resolve();
+      };
+      
+      script.onerror = (e) => {
+        console.error(`[${instanceIdRef.current}] Script failed to load: ${src}`, e);
+        reject(new Error(`Failed to load script: ${src}`));
+      };
+      
+      document.head.appendChild(script);
+    });
+  };
+
+  // Main initialization function
+  useEffect(() => {
+    // Set global mounted flag
+    if (isMounted) {
+      console.log(`[${instanceIdRef.current}] Component already mounted elsewhere, waiting...`);
+      // Another instance is active, give it time to clean up
+      const timer = setTimeout(() => {
+        setInitAttempt(prev => prev + 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    
+    isMounted = true;
+    console.log(`[${instanceIdRef.current}] Starting component mount, attempt ${initAttempt}`);
+    
     async function initApp() {
       try {
+        // First, ensure previous resources are cleaned up
+        await cleanupResources();
+        
+        // Prevent concurrent initializations
+        window.Module = window.Module || {};
+        window.Module._isInitializing = true;
+        
         setLoading(true);
         setInitError(null);
+        setModelLoading(true);
+        setCameraLoading(true);
         
-        // Step 1: Load all scripts
-        console.log("Loading scripts...");
+        // Load scripts in EXACT same order as working HTML
+        console.log(`[${instanceIdRef.current}] Loading scripts...`);
         try {
-          // Load scripts in same order as the working HTML
+          // This order matches your working HTML
           await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js");
+          await new Promise(r => setTimeout(r, 500)); // Extra delay
+          
           await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js");
+          await new Promise(r => setTimeout(r, 300));
+          
           await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js");
+          await new Promise(r => setTimeout(r, 300));
+          
           await loadScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js");
-          console.log("✅ All scripts loaded");
+          await new Promise(r => setTimeout(r, 500)); // Extra delay
+          
+          console.log(`[${instanceIdRef.current}] All scripts loaded`);
         } catch (scriptErr) {
           throw new Error(`Failed to load required libraries: ${scriptErr.message}`);
         }
         
-        // Step 2: Initialize canvas elements
+        // Verify scripts
+        if (!window.Hands) throw new Error("MediaPipe Hands not loaded");
+        if (!window.drawConnectors) throw new Error("MediaPipe drawing utils not loaded");
+        if (!window.Camera) throw new Error("MediaPipe camera utils not loaded");
+        if (!window.tf) throw new Error("TensorFlow.js not loaded");
+        
+        // Initialize canvas elements
         const canvas = canvasRef.current;
         const landmarkCanvas = landmarkCanvasRef.current;
         const video = videoRef.current;
+        
+        if (!canvas || !landmarkCanvas || !video) {
+          throw new Error("Required DOM elements not found");
+        }
         
         canvas.width = landmarkCanvas.width = CANVAS_W;
         canvas.height = landmarkCanvas.height = CANVAS_H;
@@ -157,81 +313,117 @@ export default function PracticeCamera({ onPrediction }) {
         const ctx = canvas.getContext('2d');
         const landmarkCtx = landmarkCanvas.getContext('2d');
         
-        // Step 3: Load model
+        // Load model
         setModelLoading(true);
         try {
-          console.log("Loading model...");
+          console.log(`[${instanceIdRef.current}] Loading AI model...`);
           try {
             modelRef.current = await window.tf.loadGraphModel('/ai/model.json');
           } catch (err) {
-            console.log("Trying alternate model path...");
-            modelRef.current = await window.tf.loadGraphModel('/model.json');
+            console.log(`[${instanceIdRef.current}] Trying alternate path...`);
+            try {
+              modelRef.current = await window.tf.loadGraphModel('/model.json');
+            } catch (err2) {
+              console.warn(`[${instanceIdRef.current}] Model loading issue:`, err2);
+              // Continue without model
+            }
           }
-          console.log("✅ Model loaded successfully!");
         } catch (modelErr) {
-          console.error("❌ Failed to load model:", modelErr);
-          // Non-fatal error, continue without model
+          console.warn(`[${instanceIdRef.current}] Model loading issues:`, modelErr);
         } finally {
           setModelLoading(false);
         }
         
-        // Step 4: Initialize MediaPipe Hands - exactly as in HTML
-        console.log("Initializing hand detection...");
-        const hands = new window.Hands({ 
-          locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` 
-        });
-        
-        hands.setOptions({ 
-          maxNumHands: 2, 
-          modelComplexity: 1, 
-          minDetectionConfidence: 0.7, 
-          minTrackingConfidence: 0.5 
-        });
-        
-        hands.onResults((results) => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Initialize MediaPipe Hands
+        console.log(`[${instanceIdRef.current}] Initializing hand detection...`);
+        try {
+          // Important: This will match your working HTML exactly
+          const hands = new window.Hands({ 
+            locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` 
+          });
           
-          landmarkCtx.clearRect(0, 0, landmarkCanvas.width, landmarkCanvas.height);
+          // FIX: Don't use selfieMode here, we'll handle mirroring in the canvas
+          hands.setOptions({ 
+            maxNumHands: 2, 
+            modelComplexity: 1, 
+            minDetectionConfidence: 0.7, 
+            minTrackingConfidence: 0.5 
+          });
           
-          if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-            for (const landmarks of results.multiHandLandmarks) {
-              window.drawConnectors(landmarkCtx, landmarks, window.HAND_CONNECTIONS, { 
-                color: '#12057d', 
-                lineWidth: 2 
-              });
-              window.drawLandmarks(landmarkCtx, landmarks, { 
-                color: '#dc3767', 
-                radius: 2 
-              });
+          hands.onResults((results) => {
+            // Skip if component is unmounting
+            if (!isMounted || !ctx || !landmarkCtx) return;
+            
+            // Clear both canvases
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            
+            // FIX: Manually mirror the image by flipping the context
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            landmarkCtx.clearRect(0, 0, landmarkCanvas.width, landmarkCanvas.height);
+            landmarkCtx.save();
+            landmarkCtx.scale(-1, 1);
+            landmarkCtx.translate(-landmarkCanvas.width, 0);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+              for (const landmarks of results.multiHandLandmarks) {
+                if (!window.drawConnectors || !window.HAND_CONNECTIONS) {
+                  console.warn(`[${instanceIdRef.current}] Drawing utilities not available`);
+                  continue;
+                }
+                
+                // Draw with exact same colors as your HTML
+                window.drawConnectors(landmarkCtx, landmarks, window.HAND_CONNECTIONS, { 
+                  color: '#12057d', 
+                  lineWidth: 2 
+                });
+                window.drawLandmarks(landmarkCtx, landmarks, { 
+                  color: '#dc3767', 
+                  radius: 2 
+                });
+              }
+              
+              processLandmarks(results.multiHandLandmarks);
+            } else {
+              setPred("-");
+              setConf("-");
+              setOkHold(false);
+              lastLetterRef.current = null;
+              holdStartRef.current = 0;
+              
+              if (onPrediction) {
+                onPrediction({ letter: "-", confidence: "-", isHolding: false });
+              }
             }
             
-            processLandmarks(results.multiHandLandmarks);
-          } else {
-            setPred("-");
-            setConf("-");
-            setOkHold(false);
-            lastLetterRef.current = null;
-            holdStartRef.current = 0;
-            
-            if (onPrediction) {
-              onPrediction({ letter: "-", confidence: "-", isHolding: false });
-            }
-          }
-        });
+            landmarkCtx.restore();
+          });
+          
+          handsRef.current = hands;
+          console.log(`[${instanceIdRef.current}] Hand detection initialized`);
+        } catch (handsErr) {
+          console.error(`[${instanceIdRef.current}] Hand detection initialization failed:`, handsErr);
+          throw new Error(`Failed to initialize hand detection: ${handsErr.message}`);
+        }
         
-        handsRef.current = hands;
-        
-        // Step 5: Initialize camera - exactly as in HTML
-        console.log("Starting camera...");
+        // Initialize camera
+        console.log(`[${instanceIdRef.current}] Starting camera...`);
         setCameraLoading(true);
         try {
           const camera = new window.Camera(video, {
             onFrame: async () => {
               try {
-                await hands.send({ image: video });
+                if (handsRef.current) {
+                  await handsRef.current.send({ image: video });
+                }
               } catch (e) {
-                console.warn("Frame processing error:", e);
+                // Don't log every frame error to avoid console spam
+                if (e.message !== "Not enough memory") {
+                  console.warn(`[${instanceIdRef.current}] Frame error:`, e.message);
+                }
               }
             },
             width: CANVAS_W,
@@ -240,53 +432,46 @@ export default function PracticeCamera({ onPrediction }) {
           
           cameraRef.current = camera;
           await camera.start();
-          console.log("✅ Camera started successfully!");
+          console.log(`[${instanceIdRef.current}] Camera started`);
         } catch (cameraErr) {
-          console.error("❌ Camera error:", cameraErr);
+          console.error(`[${instanceIdRef.current}] Camera error:`, cameraErr);
           throw new Error(`Failed to access camera: ${cameraErr.message}`);
         } finally {
           setCameraLoading(false);
         }
         
+        // Done!
+        window.Module._isInitializing = false;
         setLoading(false);
       } catch (err) {
-        console.error("Initialization error:", err);
+        console.error(`[${instanceIdRef.current}] Initialization error:`, err);
         setInitError(err.message || "Terjadi kesalahan saat memuat aplikasi");
         setLoading(false);
+        window.Module._isInitializing = false;
       }
     }
 
-    // Start the app
+    // Start initialization
     initApp();
 
-    // Cleanup function
+    // Cleanup on unmount
     return () => {
-      if (cameraRef.current) {
-        try {
-          cameraRef.current.stop();
-        } catch (e) {
-          console.warn("Error stopping camera:", e);
-        }
-      }
-      
-      if (handsRef.current) {
-        try {
-          handsRef.current.close();
-        } catch (e) {
-          console.warn("Error closing hands:", e);
-        }
-      }
+      console.log(`[${instanceIdRef.current}] Component unmounting`);
+      isMounted = false;
+      cleanupResources();
     };
-  }, []);
+  }, [initAttempt]);
 
   const handleRetry = () => {
-    window.location.reload();
+    // Force re-initialization
+    setInitAttempt(prev => prev + 1);
   };
 
   return (
     <div className="relative" style={{ width: CANVAS_W, height: CANVAS_H }}>
-      {/* This container mimics the HTML example */}
+      {/* Main container */}
       <div className="relative w-full h-full">
+        {/* Keep video hidden but available */}
         <video 
           ref={videoRef} 
           autoPlay 
@@ -294,6 +479,8 @@ export default function PracticeCamera({ onPrediction }) {
           muted
           className="hidden" 
         />
+        
+        {/* Canvas for video display (mirroring handled in JS now) */}
         <canvas
           ref={canvasRef}
           style={{
@@ -302,10 +489,11 @@ export default function PracticeCamera({ onPrediction }) {
             left: 0,
             width: CANVAS_W,
             height: CANVAS_H,
-            borderRadius: 10,
-            transform: "scale(-1, 1)"
+            borderRadius: 10
           }}
         />
+        
+        {/* Canvas for landmarks (mirroring handled in JS now) */}
         <canvas
           ref={landmarkCanvasRef}
           style={{
@@ -314,8 +502,7 @@ export default function PracticeCamera({ onPrediction }) {
             left: 0,
             width: CANVAS_W,
             height: CANVAS_H,
-            borderRadius: 10,
-            transform: "scale(-1, 1)"
+            borderRadius: 10
           }}
         />
       </div>
@@ -347,9 +534,15 @@ export default function PracticeCamera({ onPrediction }) {
             <p className="mb-4">{initError}</p>
             <button 
               onClick={handleRetry}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded mr-2"
             >
               Coba Lagi
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+            >
+              Muat Ulang Halaman
             </button>
           </div>
         </div>
