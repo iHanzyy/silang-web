@@ -8,7 +8,6 @@ import {
   readProgress,
   getPercentFor,
   MODULE_ITEMS,
-  resetProgress,
 } from "@/lib/practiceProgress";
 
 const CARDS = [
@@ -45,26 +44,13 @@ export default function PracticePage() {
             Pilih modul dan mulai tantangan!
           </p>
         </div>
-
-        {/* Opsional: tombol reset progres untuk pengujian */}
-        <button
-          onClick={() => {
-            resetProgress();
-            // refresh state ke 0%
-            const map = Object.fromEntries(CARDS.map((c) => [c.id, 0]));
-            setProgressMap(map);
-          }}
-          className="hidden md:inline-flex rounded-xl border border-white/30 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
-          title="Reset semua progres"
-        >
-          Reset Progress
-        </button>
       </div>
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {CARDS.map((m) => (
           <PracticeModuleCard
             key={m.id}
+            id={m.id}
             status={m.status}
             title={m.title}
             desc={m.desc}
