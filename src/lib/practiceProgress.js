@@ -44,7 +44,13 @@ export function resetProgress() {
 
 export function getPercentFor(id, progressObj) {
   const total = MODULE_ITEMS[id]?.length || 1;
-  const idx = progressObj.modules[id]?.index ?? 0;
+  
+  // Check if data is stored in the old format (directly) or new format (under modules)
+  const moduleProgress = progressObj[id] || progressObj.modules?.[id];
+  
+  // Read index from the appropriate structure
+  const idx = moduleProgress?.index ?? 0;
+  
   const pct = Math.round((idx / total) * 100);
   return Math.max(0, Math.min(100, pct));
 }

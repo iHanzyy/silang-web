@@ -51,6 +51,12 @@ export default function PracticeCamera({ onPrediction }) {
   const [pred, setPred] = useState("-");
   const [conf, setConf] = useState("-");
   const [okHold, setOkHold] = useState(false);
+
+  // Keep latest onPrediction to avoid stale closures in MediaPipe callbacks
+  const onPredictionRef = useRef(onPrediction);
+  useEffect(() => {
+    onPredictionRef.current = onPrediction;
+  }, [onPrediction]);
   
   // Function to normalize landmarks from hand detection
   function normalizeLandmarks(landmarks, wrist) {
@@ -68,8 +74,8 @@ export default function PracticeCamera({ onPrediction }) {
       lastLetterRef.current = null;
       holdStartRef.current = 0;
       
-      if (onPrediction) {
-        onPrediction({ letter: "-", confidence: "-", isHolding: false });
+      if (onPredictionRef.current) {
+        onPredictionRef.current({ letter: "-", confidence: "-", isHolding: false });
       }
       return;
     }
@@ -108,16 +114,23 @@ export default function PracticeCamera({ onPrediction }) {
         
         if (lastLetterRef.current === letter) {
           if (!holdStartRef.current) holdStartRef.current = now;
-          isHolding = now - holdStartRef.current >= HOLD_DURATION;
+          const holdTime = now - holdStartRef.current;
+          isHolding = holdTime >= HOLD_DURATION;
+          // Calculate hold progress percentage
+          const holdPercent = Math.min(100, (holdTime / HOLD_DURATION) * 100);
           setOkHold(isHolding);
+          
+          if (onPredictionRef.current) {
+            onPredictionRef.current({ letter, confidence, isHolding, holdPercent });
+          }
         } else {
           lastLetterRef.current = letter;
           holdStartRef.current = now;
           setOkHold(false);
-        }
-        
-        if (onPrediction) {
-          onPrediction({ letter, confidence, isHolding });
+          
+          if (onPredictionRef.current) {
+            onPredictionRef.current({ letter, confidence, isHolding: false, holdPercent: 0 });
+          }
         }
       } else {
         setPred("-");
@@ -126,8 +139,8 @@ export default function PracticeCamera({ onPrediction }) {
         lastLetterRef.current = null;
         holdStartRef.current = 0;
         
-        if (onPrediction) {
-          onPrediction({ letter: "-", confidence: "-", isHolding: false });
+        if (onPredictionRef.current) {
+          onPredictionRef.current({ letter: "-", confidence: "-", isHolding: false });
         }
       }
       
@@ -393,9 +406,9 @@ export default function PracticeCamera({ onPrediction }) {
               setOkHold(false);
               lastLetterRef.current = null;
               holdStartRef.current = 0;
-              
-              if (onPrediction) {
-                onPrediction({ letter: "-", confidence: "-", isHolding: false });
+
+              if (onPredictionRef.current) {
+                onPredictionRef.current({ letter: "-", confidence: "-", isHolding: false });
               }
             }
             
