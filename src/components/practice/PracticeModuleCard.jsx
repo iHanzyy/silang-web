@@ -21,7 +21,7 @@ export default function PracticeModuleCard({
 
   // label CTA
   const cta =
-    progress >= 100 ? "Review" : progress > 0 ? "Lanjutkan" : "Mulai";
+    progress >= 100 ? "Ulangi" : progress > 0 ? "Lanjutkan" : "Mulai";
 
   return (
     <div

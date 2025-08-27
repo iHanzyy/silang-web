@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardTopMenu from "./DashboardTopMenu";
 import AnimatedHamburgerButton from "@/components/AnimatedHamburgerButton";
@@ -20,35 +21,27 @@ function useIsMdUp() {
 }
 
 const SIDEBAR_W = 232;
-// jarak aman dari hamburger saat sidebar TERTUTUP (halaman non-session)
-const HAMBURGER_SAFE_OFFSET = 50;
 
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
   const mdUp = useIsMdUp();
 
-  // ⬇️ Anggap halaman sesi practice jika URL /dashboard/practice/mod-*
   const isPracticeSession = /^\/dashboard\/practice\/mod-\d+$/.test(pathname);
 
-  // ===== Desktop: persist open state ketika BUKAN halaman sesi =====
-  const [deskOpen, setDeskOpen] = useState(true);
+  // ===== Desktop: sidebar dimulai dari tertutup =====
+  const [deskOpen, setDeskOpen] = useState(false);
+  
   useEffect(() => {
-    const saved = localStorage.getItem("dashSidebarOpen");
-    if (saved !== null) setDeskOpen(saved === "1");
-  }, []);
-  useEffect(() => {
-    // tetap disimpan seperti biasa; di halaman sesi, state akan di-override saja
+    // Simpan state ke localStorage
     localStorage.setItem("dashSidebarOpen", deskOpen ? "1" : "0");
   }, [deskOpen]);
 
   // ===== Mobile drawer =====
   const [mobOpen, setMobOpen] = useState(false);
   useEffect(() => {
-    // tutup ketika ganti route pada mobile
     if (!mdUp) setMobOpen(false);
   }, [pathname, mdUp]);
 
-  // tutup paksa ketika masuk halaman sesi practice
   useEffect(() => {
     if (isPracticeSession) setMobOpen(false);
   }, [isPracticeSession]);
@@ -59,17 +52,14 @@ export default function DashboardShell({ children }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // ===== Nilai efektif (override) saat halaman sesi practice =====
+  // ===== Nilai efektif =====
   const effectiveDeskOpen = isPracticeSession ? false : deskOpen;
   const showDesktopHamburger = !isPracticeSession;
   const showMobileHamburger = !isPracticeSession;
 
-  const contentLeftPadding =
-    !isPracticeSession && !effectiveDeskOpen ? HAMBURGER_SAFE_OFFSET : 0;
-
   return (
     <div className="relative min-h-screen text-white">
-      {/* Hamburger desktop (kiri-atas) — disembunyikan pada halaman sesi */}
+      {/* Hamburger desktop */}
       {showDesktopHamburger && (
         <div className="hidden md:block fixed left-4 top-4 z-50">
           <AnimatedHamburgerButton
@@ -79,7 +69,7 @@ export default function DashboardShell({ children }) {
         </div>
       )}
 
-      {/* Hamburger mobile (kanan-atas) — disembunyikan pada halaman sesi */}
+      {/* Hamburger mobile */}
       {showMobileHamburger && (
         <div className="md:hidden fixed right-4 top-4 z-50">
           <AnimatedHamburgerButton
@@ -89,35 +79,47 @@ export default function DashboardShell({ children }) {
         </div>
       )}
 
-      {/* ==== DESKTOP: sidebar push + content-only scroll ==== */}
-      <div
-        className="hidden md:grid"
-        style={{
-          gridTemplateColumns: `${effectiveDeskOpen ? SIDEBAR_W : 0}px 1fr`,
-          height: "100vh",
-        }}
-      >
-        {/* Sidebar column */}
-        <div className="overflow-hidden">
+      {/* ==== DESKTOP: layout dengan animasi ==== */}
+      <div className="hidden md:flex h-screen relative">
+        {/* Sidebar dengan AnimatePresence */}
+        <AnimatePresence>
           {effectiveDeskOpen && (
-            <div className="sticky top-0 h-screen">
+            <motion.div
+              key="sidebar"
+              initial={{ x: -SIDEBAR_W }}
+              animate={{ x: 0 }}
+              exit={{ x: -SIDEBAR_W }}
+              transition={{
+                duration: 0.4,
+                ease: "easeInOut"
+              }}
+              style={{ width: SIDEBAR_W }}
+              className="absolute left-0 top-0 h-full z-10"
+            >
               <DashboardSidebar onExit={() => (window.location.href = "/")} />
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
 
-        {/* Content column */}
-        <div
-          className="h-screen overflow-y-auto"
-          style={{ paddingLeft: contentLeftPadding }}
+        {/* Content area - initial state full width, bergeser ketika sidebar muncul */}
+        <motion.div
+          className="w-full h-screen overflow-y-auto"
+          animate={{
+            transform: effectiveDeskOpen ? `translateX(${SIDEBAR_W}px)` : 'translateX(0px)',
+            width: effectiveDeskOpen ? `calc(100% - ${SIDEBAR_W}px)` : '100%'
+          }}
+          transition={{
+            duration: 0.4,
+            ease: "easeInOut",
+            delay: effectiveDeskOpen ? 0 : 0 // content bergeser setelah sidebar muncul
+          }}
         >
           <div className="pb-10">{children}</div>
-        </div>
+        </motion.div>
       </div>
 
       {/* ==== MOBILE: drawer dari atas ==== */}
       <div className="md:hidden min-h-screen">
-        {/* Jangan tampilkan top menu saat sesi practice */}
         {!isPracticeSession && mobOpen && (
           <DashboardTopMenu onClose={() => setMobOpen(false)} />
         )}

@@ -28,7 +28,7 @@ export default function LearnPage() {
   const handleClose = useCallback(() => setOpenLetter(null), []);
 
   return (
-    <div className="px-6 md:px-10 py-6">
+    <div className="px-6 md:px-20 py-6">
       {/* Breadcrumb + Title */}
       <p className={`text-white/70 ${quicksand.className}`}>
         Dashboard / <span className="text-white">Learn</span>

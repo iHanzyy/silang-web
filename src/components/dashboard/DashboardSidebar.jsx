@@ -25,9 +25,7 @@ export default function DashboardSidebar({ onExit }) {
       "
     >
       {/* Brand */}
-      {/* ⬇️ Tambahkan padding kiri ekstra di desktop agar tidak ketimpa hamburger */}
       <div className="h-16 pr-4 pl-4 md:pl-16 flex items-center gap-3">
-        {/* Sesuaikan md:pl-16 ke md:pl-14 / md:pl-20 sesuai kebutuhanmu */}
         <Image src="/LogoSiLang.png" alt="SiLang" width={36} height={36} />
         <span className={`text-lg font-bold ${orbitron.className}`}>SiLang</span>
       </div>
