@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Play, RotateCcw } from "lucide-react";
 import { orbitron, quicksand } from "@/lib/fonts";
+import { setModuleProgress } from "@/lib/progress";
 
 // Helper: gaya badge status
 const STATUS_STYLE = {
@@ -11,26 +13,50 @@ const STATUS_STYLE = {
 };
 
 export default function PracticeModuleCard({
+  id,                                // "mod-1", "mod-2", etc.
   status = "Tersedia",              // 'Selesai' | 'Berjalan' | 'Tersedia'
   title,                            // "Modul 1: A - E"
   desc,                             // deskripsi singkat
   progress = 0,                     // 0..100
   href = "#",                       // link tombol kanan-bawah
 }) {
+  const isCompleted = progress >= 100;
   const style = STATUS_STYLE[status] ?? STATUS_STYLE.Tersedia;
 
   // label CTA
   const cta =
     progress >= 100 ? "Ulangi" : progress > 0 ? "Lanjutkan" : "Mulai";
 
+  const handleReset = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Reset progress to 0
+    if (id === "mod-6") {
+      setModuleProgress(id, {
+        wordIdx: 0,
+        index: 0,
+        completed: false,
+      });
+    } else {
+      setModuleProgress(id, {
+        index: 0,
+        completed: false,
+      });
+    }
+    
+    // Refresh page to update progress
+    window.location.reload();
+  };
+
   return (
     <div
       className="
-        relative rounded-[28px] p-6
-        text-white
-        bg-gradient-to-br from-[#243A9A]/45 to-[#1C2C84]/45
-        ring-1 ring-white/12
-        shadow-[0_16px_36px_rgba(0,0,0,0.35)]
+        group relative overflow-hidden rounded-[24px] p-6
+        bg-[#1A2A80] text-white
+        ring-1 ring-white/15 hover:ring-white/25
+        transition-all duration-300
+        hover:shadow-[0_12px_32px_rgba(0,0,0,0.3)]
       "
     >
       {/* badge status */}
@@ -69,18 +95,34 @@ export default function PracticeModuleCard({
           {`Progress ${Math.round(progress)}%`}
         </span>
 
-        <Link
-          href={href}
-          className={`
-            inline-flex items-center justify-center rounded-xl
-            px-3 py-1.5 text-[12.5px] font-semibold
-            bg-white/10 hover:bg-white/16
-            ring-1 ring-white/22
-            ${quicksand.className}
-          `}
-        >
-          {cta}
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Reset button untuk modul yang sudah selesai */}
+          {isCompleted && (
+            <button
+              onClick={handleReset}
+              className="
+                inline-flex h-9 w-9 items-center justify-center
+                rounded-full bg-white/10 hover:bg-white/20
+                ring-1 ring-white/20 transition
+              "
+              title="Ulangi modul"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
+          
+          {/* Play/Continue button */}
+          <Link
+            href={href}
+            className="
+              inline-flex h-9 w-9 items-center justify-center
+              rounded-full bg-white/10 hover:bg-white/20
+              ring-1 ring-white/20 transition
+            "
+          >
+            <Play size={16} fill="currentColor" />
+          </Link>
+        </div>
       </div>
 
       {/* inner outline halus */}

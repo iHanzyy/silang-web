@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { AnimatePresence } from "framer-motion";
 import PracticeCamera from "./PracticeCamera";
+import ModuleCompletionModal from "./ModuleCompletionModal";
 import { MODULES, getModuleById } from "@/lib/practiceData";
 import {
   getModuleProgress,
@@ -15,6 +17,7 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
   const [targets, setTargets] = useState([]); // huruf atau kata
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [prediction, setPrediction] = useState({ letter: "-", isHolding: false });
   
@@ -87,6 +90,7 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       
       // Progress to next letter
       const nextIdx = currentIdx + 1;
+      const isModuleComplete = nextIdx >= targets.length;
       
       console.log(`📈 Moving from index ${currentIdx} to ${nextIdx}`);
       console.log(`📊 BEFORE UPDATE - Current progress:`, getModuleProgress(moduleId));
@@ -96,13 +100,13 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
         setModuleProgress(moduleId, {
           wordIdx: nextIdx,
           index: nextIdx,              // penting untuk kartu progress
-          completed: nextIdx >= targets.length,
+          completed: isModuleComplete,
         });
         console.log(`📊 Updated wordIdx/index to ${nextIdx} for module ${moduleId}`);
       } else {
         setModuleProgress(moduleId, {
           index: nextIdx,
-          completed: nextIdx >= targets.length,
+          completed: isModuleComplete,
         });
         console.log(`📊 Updated index to ${nextIdx} for module ${moduleId}`);
       }
@@ -119,6 +123,12 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
         // Force re-read from localStorage to verify
         const finalProgress = getModuleProgress(moduleId);
         console.log(`📊 Final verification - Progress:`, finalProgress);
+        
+        // Show completion modal if module is complete
+        if (isModuleComplete) {
+          console.log("🎉 MODULE COMPLETED! Showing completion modal...");
+          setShowCompletionModal(true);
+        }
       }, 1500);
     }
   };
@@ -153,84 +163,96 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
     : prediction.letter === target?.toUpperCase();
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 items-start justify-center p-6">
-      {/* Kiri: Kamera */}
-      <div className="flex-shrink-0 relative">
-        <PracticeCamera onPrediction={handlePrediction} />
-        
-        {/* Hold progress indicator */}
-        {prediction.isHolding && isCorrectLetter && holdProgress > 0 && (
-          <div className="absolute bottom-4 left-0 right-0 mx-auto w-3/4 bg-black bg-opacity-50 rounded-full h-4 overflow-hidden">
-            <div 
-              className="bg-green-400 h-full transition-all duration-100 ease-linear"
-              style={{ width: `${holdProgress}%` }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Kanan: Target + Progress */}
-      <div className="flex flex-col gap-4 items-center text-white w-full max-w-md">
-        {/* Debug info */}
-        <div className="bg-black bg-opacity-50 p-2 rounded text-xs">
-          <div>Target: {target}</div>
-          <div>Predicted: {prediction.letter}</div>
-          <div>Is Correct: {isCorrectLetter ? "✅" : "❌"}</div>
-          <div>Is Holding: {prediction.isHolding ? "✅" : "❌"}</div>
-          <div>Hold Progress: {holdProgress}%</div>
-          <div>Current Index: {currentIdx}</div>
-          <div>Animation: {isAnimatingRef.current ? "Running" : "Idle"}</div>
-          <div>Processed: {processedSuccessRef.current ? "Yes" : "No"}</div>
+    <>
+      <div className="flex flex-col md:flex-row gap-6 items-start justify-center p-6">
+        {/* Kiri: Kamera */}
+        <div className="flex-shrink-0 relative">
+          <PracticeCamera onPrediction={handlePrediction} />
+          
+          {/* Hold progress indicator */}
+          {prediction.isHolding && isCorrectLetter && holdProgress > 0 && (
+            <div className="absolute bottom-4 left-0 right-0 mx-auto w-3/4 bg-black bg-opacity-50 rounded-full h-4 overflow-hidden">
+              <div 
+                className="bg-green-400 h-full transition-all duration-100 ease-linear"
+                style={{ width: `${holdProgress}%` }}
+              />
+            </div>
+          )}
         </div>
 
-        {target && (
-          <div className="flex flex-col items-center gap-3 relative">
-            {/* Gambar huruf (khusus modul 1-5) */}
-            {moduleId !== "mod-6" && (
-              <img
-                src={`/letters/${target}.png`}
-                alt={target}
-                className="w-32 h-32 object-contain"
-                key={`img-${target}`}
-                onLoad={() => console.log(`🖼️ Image loaded for letter: ${target}`)}
-                onError={() => console.error(`❌ Image failed to load for letter: ${target}`)}
-              />
-            )}
+        {/* Kanan: Target + Progress */}
+        <div className="flex flex-col gap-4 items-center text-white w-full max-w-md">
+          {/* Debug info */}
+          <div className="bg-black bg-opacity-50 p-2 rounded text-xs">
+            <div>Target: {target}</div>
+            <div>Predicted: {prediction.letter}</div>
+            <div>Is Correct: {isCorrectLetter ? "✅" : "❌"}</div>
+            <div>Is Holding: {prediction.isHolding ? "✅" : "❌"}</div>
+            <div>Hold Progress: {holdProgress}%</div>
+            <div>Current Index: {currentIdx}</div>
+            <div>Animation: {isAnimatingRef.current ? "Running" : "Idle"}</div>
+            <div>Processed: {processedSuccessRef.current ? "Yes" : "No"}</div>
+          </div>
 
-            {/* Huruf besar */}
-            <div className={`text-4xl font-bold ${isCorrectLetter && prediction.isHolding ? "text-yellow-400" : ""}`}>
-              {target.toUpperCase()}
-            </div>
+          {target && (
+            <div className="flex flex-col items-center gap-3 relative">
+              {/* Gambar huruf (khusus modul 1-5) */}
+              {moduleId !== "mod-6" && (
+                <img
+                  src={`/letters/${target}.png`}
+                  alt={target}
+                  className="w-32 h-32 object-contain"
+                  key={`img-${target}`}
+                  onLoad={() => console.log(`🖼️ Image loaded for letter: ${target}`)}
+                  onError={() => console.error(`❌ Image failed to load for letter: ${target}`)}
+                />
+              )}
 
-            {/* Kata kerja (khusus modul 6) */}
-            {moduleId === "mod-6" && (
-              <div className="text-2xl text-yellow-200 font-semibold">
+              {/* Huruf besar */}
+              <div className={`text-4xl font-bold ${isCorrectLetter && prediction.isHolding ? "text-yellow-400" : ""}`}>
                 {target.toUpperCase()}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Progress box */}
-        <div className="flex flex-wrap gap-2 justify-center mt-4">
-          {targets.map((t, idx) => {
-            const done = idx < currentIdx;
-            const isCurrent = idx === currentIdx;
-            return (
-              <div
-                key={idx}
-                className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
-                  done ? "bg-yellow-400 text-black" : 
-                  isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
-                  "bg-white text-black"
-                }`}
-              >
-                {moduleId === "mod-6" ? t[0].toUpperCase() : t}
-              </div>
-            );
-          })}
+              {/* Kata kerja (khusus modul 6) */}
+              {moduleId === "mod-6" && (
+                <div className="text-2xl text-yellow-200 font-semibold">
+                  {target.toUpperCase()}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Progress box */}
+          <div className="flex flex-wrap gap-2 justify-center mt-4">
+            {targets.map((t, idx) => {
+              const done = idx < currentIdx;
+              const isCurrent = idx === currentIdx;
+              return (
+                <div
+                  key={idx}
+                  className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
+                    done ? "bg-yellow-400 text-black" : 
+                    isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
+                    "bg-white text-black"
+                  }`}
+                >
+                  {moduleId === "mod-6" ? t[0].toUpperCase() : t}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Completion Modal */}
+      <AnimatePresence>
+        {showCompletionModal && (
+          <ModuleCompletionModal
+            moduleId={moduleId}
+            onClose={() => setShowCompletionModal(false)}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
