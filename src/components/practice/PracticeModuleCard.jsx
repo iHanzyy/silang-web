@@ -47,8 +47,8 @@ function ResetConfirmationModal({ isOpen, onClose, onConfirm, moduleTitle }) {
           <div className="rounded-2xl bg-[#1A2A80] p-6 ring-1 ring-white/20">
             {/* Header */}
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/20">
-                <RotateCcw className="h-6 w-6 text-yellow-400" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-700/20">
+                <RotateCcw className="h-6 w-6 text-red-600" />
               </div>
               <h3 className={`text-xl font-bold text-white ${orbitron.className}`}>
                 Ulangi Modul?
@@ -68,6 +68,7 @@ function ResetConfirmationModal({ isOpen, onClose, onConfirm, moduleTitle }) {
                   py-3 px-4 text-sm font-semibold text-white 
                   hover:bg-white/20 transition-colors
                   ${quicksand.className}
+                  cursor-pointer
                 `}
               >
                 Batal
@@ -75,10 +76,11 @@ function ResetConfirmationModal({ isOpen, onClose, onConfirm, moduleTitle }) {
               <button
                 onClick={onConfirm}
                 className={`
-                  flex-1 rounded-xl bg-yellow-500 
-                  py-3 px-4 text-sm font-semibold text-black 
-                  hover:bg-yellow-400 transition-colors
+                  flex-1 rounded-xl bg-red-600 
+                  py-3 px-4 text-sm font-semibold text-white 
+                  hover:bg-red-500 transition-colors
                   ${quicksand.className}
+                  cursor-pointer
                 `}
               >
                 Ya, Ulangi
@@ -196,6 +198,7 @@ export default function PracticeModuleCard({
                   inline-flex h-9 w-9 items-center justify-center
                   rounded-full bg-white/10 hover:bg-white/20
                   ring-1 ring-white/20 transition-colors
+                  cursor-pointer
                 "
                 title="Ulangi modul"
               >
