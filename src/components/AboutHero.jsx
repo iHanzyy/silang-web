@@ -3,23 +3,55 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Instagram, Github } from "lucide-react";
+import { motion } from "framer-motion";
 import { orbitron, quicksand } from "@/lib/fonts";
 
 export default function AboutHero() {
   return (
     <section className="mx-auto max-w-7xl px-6 pt-14 pb-20">
-      {/* Title + subtitle */}
-      <h1 className={`text-center text-5xl font-bold text-white ${orbitron.className}`}>
-        About SiLang
-      </h1>
-      <p className={`mt-3 text-center text-white text-xl ${quicksand.className} font-semibold`}>
-        Every sign speaks, every gesture connects, every silence tells a story.
-      </p>
+      {/* Title + subtitle with scale animation */}
+      <motion.div
+        initial={{
+          scale: 0.8,
+          opacity: 0,
+        }}
+        animate={{
+          scale: 1,
+          opacity: 1,
+        }}
+        transition={{
+          duration: 0.8,
+          ease: "easeOut",
+          delay: 0.1,
+        }}
+      >
+        <h1 className={`text-center text-5xl font-bold text-white ${orbitron.className}`}>
+          About SiLang
+        </h1>
+        <p className={`mt-3 text-center text-white text-xl ${quicksand.className} font-semibold`}>
+          Every sign speaks, every gesture connects, every silence tells a story.
+        </p>
+      </motion.div>
 
       {/* Main content */}
       <div className="mt-22 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:items-center">
-        {/* Left: two profile cards */}
-        <div className="lg:col-span-5 lg:self-center">
+        {/* Left: two profile cards with animation from left to right */}
+        <motion.div
+          className="lg:col-span-5 lg:self-center"
+          initial={{
+            x: -100,
+            opacity: 0,
+          }}
+          animate={{
+            x: 0,
+            opacity: 1,
+          }}
+          transition={{
+            duration: 0.8,
+            ease: "easeOut",
+            delay: 0.3,
+          }}
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <TeamCard
               imgSrc="/about/jonah.jpg"
@@ -40,10 +72,25 @@ export default function AboutHero() {
               ghHref="https://github.com/faizaenal"
             />
           </div>
-        </div>
+        </motion.div>
 
-        {/* Right: story */}
-        <div className="lg:col-span-7 lg:self-center">
+        {/* Right: story with animation from right to left */}
+        <motion.div
+          className="lg:col-span-7 lg:self-center"
+          initial={{
+            x: 100,
+            opacity: 0,
+          }}
+          animate={{
+            x: 0,
+            opacity: 1,
+          }}
+          transition={{
+            duration: 0.8,
+            ease: "easeOut",
+            delay: 0.5,
+          }}
+        >
           <h3 className={`text-2xl font-semibold text-white ${orbitron.className}`}>Our Story</h3>
           <div className="mt-2 h-[2px] w-[130px] rounded bg-white" />
           <div
@@ -56,13 +103,13 @@ export default function AboutHero() {
               an idea sparked—what if we built something meaningful, something that could help others learn?
             </p>
             <p>
-              That’s how SiLang was born: a simple yet heartfelt website to introduce and teach the
+              That's how SiLang was born: a simple yet heartfelt website to introduce and teach the
               alphabet in sign language. More than just a project, SiLang is our way of sharing a tool
               for connection, understanding, and learning. What started as a playful idea quickly became
               something we truly care about.
             </p>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
