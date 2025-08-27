@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import PracticeCamera from "./PracticeCamera";
 import ModuleCompletionModal from "./ModuleCompletionModal";
 import { MODULES, getModuleById } from "@/lib/practiceData";
@@ -11,8 +13,10 @@ import {
   ensureWordsForModule,
 } from "@/lib/progress";
 import { pickRandomVerbs } from "@/lib/practiceData";
+import { orbitron, quicksand } from "@/lib/fonts";
 
 export default function PracticeSession({ moduleId = "mod-1" }) {
+  const router = useRouter();
   const module = getModuleById(moduleId);
   const [targets, setTargets] = useState([]); // huruf atau kata
   const [currentIdx, setCurrentIdx] = useState(0); // index kata saat ini
@@ -45,9 +49,6 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       setCurrentIdx(prog.index || 0);
       setLetterIdx(0); // tidak digunakan untuk mod 1-5
     }
-    
-    // Debug existing progress
-    console.log(`Loaded module ${moduleId}, current progress:`, getModuleProgress(moduleId));
     
     // Reset all animation flags when module changes
     isAnimatingRef.current = false;
@@ -83,13 +84,8 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       isMatch = letter === targetLetter;
     }
 
-    // Enhanced debug logging
-    console.log(`🔍 DEBUG: letter="${letter}", target="${target}", targetLetter="${targetLetter}", letterIdx=${letterIdx}, isMatch=${isMatch}, isHolding=${isHolding}, holdPercent=${holdPercent}, processed=${processedSuccessRef.current}, animating=${isAnimatingRef.current}`);
-
     // SIMPLE SUCCESS LOGIC - ketika sistem mendeteksi "Berhasil!" di kamera
     if (isMatch && isHolding && !processedSuccessRef.current && !isAnimatingRef.current) {
-      console.log("🚀 SUCCESS DETECTED! Moving to next letter...");
-      
       // Mark as processed immediately to prevent double-processing
       processedSuccessRef.current = true;
       isAnimatingRef.current = true;
@@ -117,9 +113,6 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
         isModuleComplete = nextWordIdx >= targets.length;
       }
       
-      console.log(`📈 Moving from word ${currentIdx}, letter ${letterIdx} to word ${nextWordIdx}, letter ${nextLetterIdx}`);
-      console.log(`📊 BEFORE UPDATE - Current progress:`, getModuleProgress(moduleId));
-      
       // Update progress in localStorage immediately
       if (moduleId === "mod-6") {
         setModuleProgress(moduleId, {
@@ -128,13 +121,11 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
           index: nextWordIdx, // untuk kartu progress
           completed: isModuleComplete,
         });
-        console.log(`📊 Updated wordIdx to ${nextWordIdx}, letterIdx to ${nextLetterIdx} for module ${moduleId}`);
       } else {
         setModuleProgress(moduleId, {
           index: nextWordIdx,
           completed: isModuleComplete,
         });
-        console.log(`📊 Updated index to ${nextWordIdx} for module ${moduleId}`);
       }
 
       // Update UI state segera
@@ -145,38 +136,14 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       setTimeout(() => {
         setShowSuccess(false);
         isAnimatingRef.current = false;
-        console.log(`✅ Animation complete. Current word ${nextWordIdx}, letter ${nextLetterIdx}`);
-        
-        // Force re-read from localStorage to verify
-        const finalProgress = getModuleProgress(moduleId);
-        console.log(`📊 Final verification - Progress:`, finalProgress);
         
         // Show completion modal if module is complete
         if (isModuleComplete) {
-          console.log("🎉 MODULE COMPLETED! Showing completion modal...");
           setShowCompletionModal(true);
         }
       }, 1500);
     }
   };
-
-  // Debug hook to check for stuck progress
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const lastPrediction = lastPredictionRef.current;
-      
-      // If we haven't received a prediction in 5 seconds, log a warning
-      if (lastPrediction.letter && now - lastPrediction.time > 5000) {
-        console.warn("⚠️ No predictions received in the last 5 seconds. Last prediction:", lastPrediction);
-      }
-      
-      // Log current state every 10 seconds for debugging
-      console.log(`🔄 Current state: target="${targets[currentIdx]}", prediction="${prediction.letter}", isHolding=${prediction.isHolding}, holdProgress=${holdProgress}%`);
-    }, 10000);
-    
-    return () => clearInterval(interval);
-  }, [targets, currentIdx, prediction, holdProgress]);
 
   if (!module) {
     return <div className="text-center text-white">Modul tidak ditemukan.</div>;
@@ -197,125 +164,134 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
   // Fix the isCorrectLetter calculation
   const isCorrectLetter = prediction.letter === currentTargetLetter;
 
-  // Generate progress boxes - FIXED untuk mod-6
-  const getProgressBoxes = () => {
-    if (moduleId === "mod-6") {
-      // Untuk mod-6: hanya tampilkan huruf dari kata yang sedang dikerjakan
-      if (!target) return [];
+  // Generate footer word display untuk mod-6
+  const getWordDisplay = () => {
+    if (moduleId !== "mod-6" || !target) return null;
+    
+    return target.split('').map((letter, idx) => {
+      const completed = idx < letterIdx;
       
-      return target.split('').map((letter, idx) => {
-        const done = idx < letterIdx;
-        const isCurrent = idx === letterIdx;
-        
-        return (
-          <div
-            key={idx}
-            className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
-              done ? "bg-yellow-400 text-black" : 
-              isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
-              "bg-white text-black"
-            }`}
-          >
-            {letter.toUpperCase()}
-          </div>
-        );
-      });
-    } else {
-      // Untuk mod 1-5: tampilkan huruf seperti biasa
-      return targets.map((t, idx) => {
-        const done = idx < currentIdx;
-        const isCurrent = idx === currentIdx;
-        return (
-          <div
-            key={idx}
-            className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
-              done ? "bg-yellow-400 text-black" : 
-              isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
-              "bg-white text-black"
-            }`}
-          >
-            {t}
-          </div>
-        );
-      });
-    }
+      return (
+        <span
+          key={idx}
+          className={`text-4xl font-bold ${completed ? "text-yellow-400" : "text-white"} ${quicksand.className}`}
+        >
+          {letter.toUpperCase()}
+        </span>
+      );
+    });
+  };
+
+  // Module titles
+  const MODULE_TITLES = {
+    "mod-1": "Modul 1: A - E",
+    "mod-2": "Modul 2: F - J", 
+    "mod-3": "Modul 3: K - O",
+    "mod-4": "Modul 4: P - T",
+    "mod-5": "Modul 5: U - Z",
+    "mod-6": "Modul 6: Kata Kerja",
+  };
+
+  const handleExit = () => {
+    router.push('/dashboard/practice');
   };
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row gap-6 items-start justify-center p-6">
-        {/* Kiri: Kamera */}
-        <div className="flex-shrink-0 relative">
-          <PracticeCamera onPrediction={handlePrediction} />
-          
-          {/* Hold progress indicator */}
-          {prediction.isHolding && isCorrectLetter && holdProgress > 0 && (
-            <div className="absolute bottom-4 left-0 right-0 mx-auto w-3/4 bg-black bg-opacity-50 rounded-full h-4 overflow-hidden">
-              <div 
-                className="bg-green-400 h-full transition-all duration-100 ease-linear"
-                style={{ width: `${holdProgress}%` }}
-              />
-            </div>
-          )}
+    <div className="min-h-screen bg-gradient-to-b from-[#1D2968] to-[#3A52CE]">
+      {/* Navbar */}
+      <nav className="bg-[#1A2A80] px-6 py-4">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          {/* Exit Button */}
+          <button
+            onClick={handleExit}
+            className="
+              inline-flex items-center gap-2 px-4 py-2
+              rounded-xl ring-1 ring-white/25 text-white
+              bg-white/10 hover:bg-white/20
+              transition-colors duration-200
+            "
+          >
+            <X size={18} />
+            Exit
+          </button>
+
+          {/* Title */}
+          <h1 className={`text-white text-xl md:text-2xl font-bold ${orbitron.className}`}>
+            Tantangan Rangkai Kata
+          </h1>
+
+          {/* Placeholder untuk balance layout */}
+          <div className="w-20"></div>
         </div>
+      </nav>
 
-        {/* Kanan: Target + Progress */}
-        <div className="flex flex-col gap-4 items-center text-white w-full max-w-md">
-          {/* Debug info */}
-          <div className="bg-black bg-opacity-50 p-2 rounded text-xs">
-            <div>Word: {target}</div>
-            <div>Current Letter: {currentTargetLetter}</div>
-            <div>Letter Index: {letterIdx}</div>
-            <div>Predicted: {prediction.letter}</div>
-            <div>Is Correct: {isCorrectLetter ? "✅" : "❌"}</div>
-            <div>Is Holding: {prediction.isHolding ? "✅" : "❌"}</div>
-            <div>Hold Progress: {holdProgress}%</div>
-            <div>Word Index: {currentIdx}</div>
-            <div>Animation: {isAnimatingRef.current ? "Running" : "Idle"}</div>
-            <div>Processed: {processedSuccessRef.current ? "Yes" : "No"}</div>
-          </div>
+      {/* Header - Module Title */}
+      <div className="px-6 py-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className={`text-white text-3xl md:text-4xl lg:text-5xl font-bold ${orbitron.className}`}>
+            {MODULE_TITLES[moduleId] || "Modul"}
+          </h2>
+        </div>
+      </div>
 
-          {target && (
-            <div className="flex flex-col items-center gap-3 relative">
-              {/* Gambar huruf - DITAMPILKAN UNTUK SEMUA MODUL */}
-              <img
-                src={`/letters/${currentTargetLetter}.png`}
-                alt={currentTargetLetter}
-                className="w-32 h-32 object-contain"
-                key={`img-${currentTargetLetter}`}
-                onLoad={() => console.log(`🖼️ Image loaded for letter: ${currentTargetLetter}`)}
-                onError={() => console.error(`❌ Image failed to load for letter: ${currentTargetLetter}`)}
-              />
-
-              {/* Huruf yang sedang dipraktikkan */}
-              <div className={`text-4xl font-bold ${isCorrectLetter && prediction.isHolding ? "text-yellow-400" : ""}`}>
-                {currentTargetLetter}
-              </div>
-
-              {/* Kata lengkap (khusus modul 6) */}
-              {moduleId === "mod-6" && (
-                <div className="text-2xl text-yellow-200 font-semibold">
-                  {target.toUpperCase()}
+      {/* Main Content */}
+      <div className="px-6 pb-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
+            {/* Kiri: Kamera */}
+            <div className="flex-shrink-0 relative">
+              <PracticeCamera onPrediction={handlePrediction} />
+              
+              {/* Hold progress indicator */}
+              {prediction.isHolding && isCorrectLetter && holdProgress > 0 && (
+                <div className="absolute bottom-4 left-0 right-0 mx-auto w-3/4 bg-black bg-opacity-50 rounded-full h-4 overflow-hidden">
+                  <div 
+                    className="bg-green-400 h-full transition-all duration-100 ease-linear"
+                    style={{ width: `${holdProgress}%` }}
+                  />
                 </div>
               )}
             </div>
-          )}
 
-          {/* Progress box */}
-          <div className="flex flex-wrap gap-2 justify-center mt-4">
-            {getProgressBoxes()}
-          </div>
+            {/* Kanan: Image Panel + Letter */}
+            <div className="flex flex-col items-center gap-6">
+              {/* Panel Putih dengan Gambar Huruf */}
+              <div className="bg-white rounded-3xl p-8 w-80 h-80 flex items-center justify-center">
+                {target && (
+                  <img
+                    src={`/letters/${currentTargetLetter}.png`}
+                    alt={currentTargetLetter}
+                    className="w-full h-full object-contain"
+                    key={`img-${currentTargetLetter}`}
+                  />
+                )}
+              </div>
 
-          {/* Progress kata untuk mod-6 */}
-          {moduleId === "mod-6" && (
-            <div className="text-center mt-2">
-              <div className="text-sm text-white/70">
-                Kata {currentIdx + 1} dari {targets.length}
+              {/* Huruf yang sedang dipraktikkan */}
+              <div 
+                className={`text-6xl md:text-7xl font-bold ${orbitron.className} ${
+                  isCorrectLetter && prediction.isHolding ? "text-yellow-400" : "text-white"
+                }`}
+              >
+                {currentTargetLetter}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* Footer - Word Display untuk Mod-6 */}
+      {moduleId === "mod-6" && target && (
+        <div className="px-6 pb-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center">
+              <div className="inline-flex gap-2">
+                {getWordDisplay()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Completion Modal */}
       <AnimatePresence>
@@ -326,6 +302,6 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
           />
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }
