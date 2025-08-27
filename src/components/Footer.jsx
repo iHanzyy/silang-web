@@ -1,12 +1,29 @@
-// src/components/Footer.js
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Github } from "lucide-react";
+import { motion } from "framer-motion";
 import { orbitron, quicksand } from "@/lib/fonts";
 
 export default function Footer() {
   return (
-    <footer className="mt-2 bg-transparent">
+    <motion.footer
+      className="mt-2 bg-transparent"
+      initial={{
+        y: 100,
+        opacity: 0,
+      }}
+      animate={{
+        y: 0,
+        opacity: 1,
+      }}
+      transition={{
+        duration: 0.8,
+        ease: "easeOut",
+        delay: 0.3,
+      }}
+    >
       <div className="mx-auto max-w-7xl px-6 text-white">
         {/* ===== Top area (3 kolom) ===== */}
         <div className="py-12">
@@ -112,6 +129,6 @@ export default function Footer() {
           </p>
         </div>
       </div>
-    </footer>
+    </motion.footer>
   );
 }

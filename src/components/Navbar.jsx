@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -60,11 +60,34 @@ function DesktopNav() {
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  // Deteksi apakah ini first load atau client-side navigation
+  useEffect(() => {
+    const isFirstLoad =
+      !window.performance ||
+      window.performance.navigation.type === 1 || // TYPE_RELOAD
+      !sessionStorage.getItem("navbar-animated");
+
+    if (isFirstLoad) {
+      sessionStorage.setItem("navbar-animated", "true");
+      setHasAnimated(false);
+    } else {
+      setHasAnimated(true);
+    }
+  }, []);
 
   return (
     <>
       {/* ===== Fixed header (blur) ===== */}
-      <header
+      <motion.header
+        initial={hasAnimated ? false : { y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={
+          hasAnimated
+            ? { duration: 0.2 }
+            : { type: "ease-in", stiffness: 350, damping: 28, mass: 3, duration: 0.8, delay: 0.2}
+        }
         className="
           fixed inset-x-0 top-0 z-50
           border-b border-white/10
@@ -107,7 +130,7 @@ export default function Navbar() {
             <AnimatedHamburgerButton onToggle={setMobileOpen} />
           </div>
         </nav>
-      </header>
+      </motion.header>
 
       {/* Spacer agar konten tidak ketutup header fixed */}
       <div className="h-16 md:h-20" />
