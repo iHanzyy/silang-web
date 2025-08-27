@@ -15,7 +15,8 @@ import { pickRandomVerbs } from "@/lib/practiceData";
 export default function PracticeSession({ moduleId = "mod-1" }) {
   const module = getModuleById(moduleId);
   const [targets, setTargets] = useState([]); // huruf atau kata
-  const [currentIdx, setCurrentIdx] = useState(0);
+  const [currentIdx, setCurrentIdx] = useState(0); // index kata saat ini
+  const [letterIdx, setLetterIdx] = useState(0); // index huruf dalam kata (khusus mod-6)
   const [showSuccess, setShowSuccess] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
@@ -37,10 +38,12 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       setTargets(words);
       const prog = getModuleProgress(moduleId);
       setCurrentIdx(prog.wordIdx || 0);
+      setLetterIdx(prog.letterIdx || 0);
     } else {
       setTargets(module.range || []);
       const prog = getModuleProgress(moduleId);
       setCurrentIdx(prog.index || 0);
+      setLetterIdx(0); // tidak digunakan untuk mod 1-5
     }
     
     // Debug existing progress
@@ -51,10 +54,10 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
     processedSuccessRef.current = false;
   }, [moduleId, module]);
 
-  // Reset processed flag when currentIdx changes
+  // Reset processed flag when currentIdx or letterIdx changes
   useEffect(() => {
     processedSuccessRef.current = false;
-  }, [currentIdx]);
+  }, [currentIdx, letterIdx]);
 
   const handlePrediction = ({ letter, isHolding, holdPercent }) => {
     // Update the last received prediction
@@ -67,15 +70,21 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
     const target = targets[currentIdx];
     if (!target) return;
 
-    const targetUpper = target.toUpperCase();
-    
-    // Fix the matching logic based on module type
-    const isMatch = moduleId === "mod-6"
-      ? letter === targetUpper[0] // match first letter of word for module 6
-      : letter === targetUpper;   // exact letter match for other modules
+    let targetLetter;
+    let isMatch;
+
+    if (moduleId === "mod-6") {
+      // Untuk mod-6: ambil huruf berdasarkan letterIdx
+      targetLetter = target[letterIdx]?.toUpperCase();
+      isMatch = letter === targetLetter;
+    } else {
+      // Untuk mod 1-5: target adalah huruf langsung
+      targetLetter = target.toUpperCase();
+      isMatch = letter === targetLetter;
+    }
 
     // Enhanced debug logging
-    console.log(`🔍 DEBUG: letter="${letter}", target="${targetUpper}", isMatch=${isMatch}, isHolding=${isHolding}, holdPercent=${holdPercent}, processed=${processedSuccessRef.current}, animating=${isAnimatingRef.current}`);
+    console.log(`🔍 DEBUG: letter="${letter}", target="${target}", targetLetter="${targetLetter}", letterIdx=${letterIdx}, isMatch=${isMatch}, isHolding=${isHolding}, holdPercent=${holdPercent}, processed=${processedSuccessRef.current}, animating=${isAnimatingRef.current}`);
 
     // SIMPLE SUCCESS LOGIC - ketika sistem mendeteksi "Berhasil!" di kamera
     if (isMatch && isHolding && !processedSuccessRef.current && !isAnimatingRef.current) {
@@ -88,37 +97,55 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       // Show success animation
       setShowSuccess(true);
       
-      // Progress to next letter
-      const nextIdx = currentIdx + 1;
-      const isModuleComplete = nextIdx >= targets.length;
+      let nextWordIdx = currentIdx;
+      let nextLetterIdx = letterIdx;
+      let isModuleComplete = false;
+
+      if (moduleId === "mod-6") {
+        // Untuk mod-6: lanjut ke huruf berikutnya dalam kata
+        nextLetterIdx = letterIdx + 1;
+        
+        // Jika sudah selesai kata ini, lanjut ke kata berikutnya
+        if (nextLetterIdx >= target.length) {
+          nextWordIdx = currentIdx + 1;
+          nextLetterIdx = 0;
+          isModuleComplete = nextWordIdx >= targets.length;
+        }
+      } else {
+        // Untuk mod 1-5: lanjut ke huruf berikutnya
+        nextWordIdx = currentIdx + 1;
+        isModuleComplete = nextWordIdx >= targets.length;
+      }
       
-      console.log(`📈 Moving from index ${currentIdx} to ${nextIdx}`);
+      console.log(`📈 Moving from word ${currentIdx}, letter ${letterIdx} to word ${nextWordIdx}, letter ${nextLetterIdx}`);
       console.log(`📊 BEFORE UPDATE - Current progress:`, getModuleProgress(moduleId));
       
       // Update progress in localStorage immediately
       if (moduleId === "mod-6") {
         setModuleProgress(moduleId, {
-          wordIdx: nextIdx,
-          index: nextIdx,              // penting untuk kartu progress
+          wordIdx: nextWordIdx,
+          letterIdx: nextLetterIdx,
+          index: nextWordIdx, // untuk kartu progress
           completed: isModuleComplete,
         });
-        console.log(`📊 Updated wordIdx/index to ${nextIdx} for module ${moduleId}`);
+        console.log(`📊 Updated wordIdx to ${nextWordIdx}, letterIdx to ${nextLetterIdx} for module ${moduleId}`);
       } else {
         setModuleProgress(moduleId, {
-          index: nextIdx,
+          index: nextWordIdx,
           completed: isModuleComplete,
         });
-        console.log(`📊 Updated index to ${nextIdx} for module ${moduleId}`);
+        console.log(`📊 Updated index to ${nextWordIdx} for module ${moduleId}`);
       }
 
-      // Update UI state segera (clamp optional)
-      setCurrentIdx(nextIdx);
+      // Update UI state segera
+      setCurrentIdx(nextWordIdx);
+      setLetterIdx(nextLetterIdx);
       
       // Wait for animation, then cleanup
       setTimeout(() => {
         setShowSuccess(false);
         isAnimatingRef.current = false;
-        console.log(`✅ Animation complete. Current index is now ${nextIdx}`);
+        console.log(`✅ Animation complete. Current word ${nextWordIdx}, letter ${nextLetterIdx}`);
         
         // Force re-read from localStorage to verify
         const finalProgress = getModuleProgress(moduleId);
@@ -157,10 +184,62 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
 
   const target = targets[currentIdx] || null;
   
+  // Current target letter
+  let currentTargetLetter = "";
+  if (target) {
+    if (moduleId === "mod-6") {
+      currentTargetLetter = target[letterIdx]?.toUpperCase() || "";
+    } else {
+      currentTargetLetter = target.toUpperCase();
+    }
+  }
+  
   // Fix the isCorrectLetter calculation
-  const isCorrectLetter = moduleId === "mod-6"
-    ? prediction.letter === target?.charAt(0).toUpperCase()
-    : prediction.letter === target?.toUpperCase();
+  const isCorrectLetter = prediction.letter === currentTargetLetter;
+
+  // Generate progress boxes - FIXED untuk mod-6
+  const getProgressBoxes = () => {
+    if (moduleId === "mod-6") {
+      // Untuk mod-6: hanya tampilkan huruf dari kata yang sedang dikerjakan
+      if (!target) return [];
+      
+      return target.split('').map((letter, idx) => {
+        const done = idx < letterIdx;
+        const isCurrent = idx === letterIdx;
+        
+        return (
+          <div
+            key={idx}
+            className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
+              done ? "bg-yellow-400 text-black" : 
+              isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
+              "bg-white text-black"
+            }`}
+          >
+            {letter.toUpperCase()}
+          </div>
+        );
+      });
+    } else {
+      // Untuk mod 1-5: tampilkan huruf seperti biasa
+      return targets.map((t, idx) => {
+        const done = idx < currentIdx;
+        const isCurrent = idx === currentIdx;
+        return (
+          <div
+            key={idx}
+            className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
+              done ? "bg-yellow-400 text-black" : 
+              isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
+              "bg-white text-black"
+            }`}
+          >
+            {t}
+          </div>
+        );
+      });
+    }
+  };
 
   return (
     <>
@@ -184,36 +263,36 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
         <div className="flex flex-col gap-4 items-center text-white w-full max-w-md">
           {/* Debug info */}
           <div className="bg-black bg-opacity-50 p-2 rounded text-xs">
-            <div>Target: {target}</div>
+            <div>Word: {target}</div>
+            <div>Current Letter: {currentTargetLetter}</div>
+            <div>Letter Index: {letterIdx}</div>
             <div>Predicted: {prediction.letter}</div>
             <div>Is Correct: {isCorrectLetter ? "✅" : "❌"}</div>
             <div>Is Holding: {prediction.isHolding ? "✅" : "❌"}</div>
             <div>Hold Progress: {holdProgress}%</div>
-            <div>Current Index: {currentIdx}</div>
+            <div>Word Index: {currentIdx}</div>
             <div>Animation: {isAnimatingRef.current ? "Running" : "Idle"}</div>
             <div>Processed: {processedSuccessRef.current ? "Yes" : "No"}</div>
           </div>
 
           {target && (
             <div className="flex flex-col items-center gap-3 relative">
-              {/* Gambar huruf (khusus modul 1-5) */}
-              {moduleId !== "mod-6" && (
-                <img
-                  src={`/letters/${target}.png`}
-                  alt={target}
-                  className="w-32 h-32 object-contain"
-                  key={`img-${target}`}
-                  onLoad={() => console.log(`🖼️ Image loaded for letter: ${target}`)}
-                  onError={() => console.error(`❌ Image failed to load for letter: ${target}`)}
-                />
-              )}
+              {/* Gambar huruf - DITAMPILKAN UNTUK SEMUA MODUL */}
+              <img
+                src={`/letters/${currentTargetLetter}.png`}
+                alt={currentTargetLetter}
+                className="w-32 h-32 object-contain"
+                key={`img-${currentTargetLetter}`}
+                onLoad={() => console.log(`🖼️ Image loaded for letter: ${currentTargetLetter}`)}
+                onError={() => console.error(`❌ Image failed to load for letter: ${currentTargetLetter}`)}
+              />
 
-              {/* Huruf besar */}
+              {/* Huruf yang sedang dipraktikkan */}
               <div className={`text-4xl font-bold ${isCorrectLetter && prediction.isHolding ? "text-yellow-400" : ""}`}>
-                {target.toUpperCase()}
+                {currentTargetLetter}
               </div>
 
-              {/* Kata kerja (khusus modul 6) */}
+              {/* Kata lengkap (khusus modul 6) */}
               {moduleId === "mod-6" && (
                 <div className="text-2xl text-yellow-200 font-semibold">
                   {target.toUpperCase()}
@@ -224,23 +303,17 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
 
           {/* Progress box */}
           <div className="flex flex-wrap gap-2 justify-center mt-4">
-            {targets.map((t, idx) => {
-              const done = idx < currentIdx;
-              const isCurrent = idx === currentIdx;
-              return (
-                <div
-                  key={idx}
-                  className={`w-10 h-10 flex items-center justify-center rounded-md font-bold ${
-                    done ? "bg-yellow-400 text-black" : 
-                    isCurrent ? "bg-white text-black ring-2 ring-yellow-300" : 
-                    "bg-white text-black"
-                  }`}
-                >
-                  {moduleId === "mod-6" ? t[0].toUpperCase() : t}
-                </div>
-              );
-            })}
+            {getProgressBoxes()}
           </div>
+
+          {/* Progress kata untuk mod-6 */}
+          {moduleId === "mod-6" && (
+            <div className="text-center mt-2">
+              <div className="text-sm text-white/70">
+                Kata {currentIdx + 1} dari {targets.length}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

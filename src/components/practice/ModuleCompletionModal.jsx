@@ -93,6 +93,7 @@ export default function ModuleCompletionModal({ moduleId, onClose }) {
                 text-white font-semibold text-lg
                 transition-all duration-200
                 ${quicksand.className}
+                cursor-pointer
               `}
             >
               Exit
@@ -107,6 +108,7 @@ export default function ModuleCompletionModal({ moduleId, onClose }) {
                   text-white font-semibold text-lg
                   transition-all duration-200
                   ${quicksand.className}
+                  cursor-pointer
                 `}
               >
                 Next
