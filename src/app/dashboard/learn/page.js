@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { orbitron, quicksand } from "@/lib/fonts";
 import { X } from "lucide-react";
 
@@ -12,6 +13,7 @@ const LETTERS = Array.from({ length: 26 }, (_, i) =>
 
 export default function LearnPage() {
   const [openLetter, setOpenLetter] = useState(null); // "A"|"B"|...|null
+  const [visibleCards, setVisibleCards] = useState(new Set()); // Set huruf yang sudah muncul
 
   // (opsional) kunci scroll saat modal terbuka
   useEffect(() => {
@@ -24,7 +26,33 @@ export default function LearnPage() {
     }
   }, [openLetter]);
 
-  const handleOpen = useCallback((ch) => setOpenLetter(ch), []);
+  // Animasi cards muncul satu persatu
+  useEffect(() => {
+    let timeouts = [];
+    
+    LETTERS.forEach((letter, index) => {
+      const timeout = setTimeout(() => {
+        setVisibleCards(prev => new Set([...prev, letter]));
+      }, index * 100); // delay 100ms antar card
+      
+      timeouts.push(timeout);
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, []);
+
+  const handleOpen = useCallback(
+    (ch) => {
+      // Hanya bisa dibuka jika card sudah visible
+      if (visibleCards.has(ch)) {
+        setOpenLetter(ch);
+      }
+    },
+    [visibleCards]
+  );
+  
   const handleClose = useCallback(() => setOpenLetter(null), []);
 
   return (
@@ -44,29 +72,41 @@ export default function LearnPage() {
         Pahami bentuk isyarat tangan sebelum mulai latihan
       </p>
 
-      {/* Grid huruf */}
+      {/* Grid huruf dengan animasi stagger */}
       <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6">
         {LETTERS.map((ch) => (
-          <LearnTile key={ch} letter={ch} onClick={() => handleOpen(ch)} />
+          <LearnTile
+            key={ch}
+            letter={ch}
+            onClick={() => handleOpen(ch)}
+            isVisible={visibleCards.has(ch)}
+          />
         ))}
       </div>
 
-      {/* Modal viewer */}
-      {openLetter && (
-        <LetterViewerModal letter={openLetter} onClose={handleClose} />
-      )}
+      {/* Modal viewer dengan animasi */}
+      <AnimatePresence>
+        {openLetter && (
+          <LetterViewerModal letter={openLetter} onClose={handleClose} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 /* ===================== Tile ===================== */
 
-function LearnTile({ letter, onClick }) {
+function LearnTile({ letter, onClick, isVisible }) {
+  if (!isVisible) {
+    // Card belum visible, return placeholder kosong
+    return <div className="aspect-square" />;
+  }
+
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      className="
+      className={`
         group relative aspect-square p-2 rounded-2xl
         ring-1 ring-white/18 bg-[#1A2A80]
         hover:ring-white/35 
@@ -74,10 +114,22 @@ function LearnTile({ letter, onClick }) {
         hover:scale-105
         transition-all duration-500 ease-in-out
         text-white
-        cursor-pointer
         holographic-effect
-      "
+        cursor-pointer
+      `}
       aria-label={`Lihat huruf ${letter}`}
+      initial={{
+        scale: 0,
+        opacity: 0,
+      }}
+      animate={{
+        scale: 1,
+        opacity: 1,
+      }}
+      transition={{
+        duration: 0.4,
+        ease: "easeIn",
+      }}
     >
       {/* grid: 70% preview + 30% label */}
       <div className="grid h-full grid-rows-[7fr_3fr] gap-2">
@@ -105,7 +157,7 @@ function LearnTile({ letter, onClick }) {
 
       {/* inner outline halus */}
       <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-[#3A52CE]" />
-    </button>
+    </motion.button>
   );
 }
 
@@ -120,11 +172,27 @@ function LetterViewerModal({ letter, onClose }) {
   }, [onClose]);
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-[70]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="viewer-title"
+      initial={{
+        scale: 0.8,
+        opacity: 0,
+      }}
+      animate={{
+        scale: 1,
+        opacity: 1,
+      }}
+      exit={{
+        scale: 0.8,
+        opacity: 0,
+      }}
+      transition={{
+        duration: 0.3,
+        ease: "easeOut",
+      }}
     >
       {/* klik area kosong menutup */}
       <div
@@ -133,9 +201,9 @@ function LetterViewerModal({ letter, onClose }) {
         aria-hidden="true"
       />
 
-      {/* Container utama (tanpa animasi) */}
+      {/* Container utama */}
       <div className="relative h-full w-full p-4 md:p-6">
-        {/* Panel (rounded besar seperti contoh) */}
+        {/* Panel */}
         <div className="mx-auto h-full max-w-6xl rounded-[36px] ring-1 ring-white/12 overflow-hidden bg-[#0F1B57]/95">
           {/* Top bar */}
           <div className="flex items-center justify-between h-14 px-5 md:px-6 bg-[#1A2A80]">
@@ -174,6 +242,6 @@ function LetterViewerModal({ letter, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
