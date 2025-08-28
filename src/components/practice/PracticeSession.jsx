@@ -132,15 +132,15 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       setCurrentIdx(nextWordIdx);
       setLetterIdx(nextLetterIdx);
       
-      // Wait for animation, then cleanup
+      // Show completion modal immediately if module is complete
+      if (isModuleComplete) {
+        setShowCompletionModal(true);
+      }
+      
+      // Wait for animation, then cleanup (tanpa menunggu untuk completion modal)
       setTimeout(() => {
         setShowSuccess(false);
         isAnimatingRef.current = false;
-        
-        // Show completion modal if module is complete
-        if (isModuleComplete) {
-          setShowCompletionModal(true);
-        }
       }, 1500);
     }
   };
