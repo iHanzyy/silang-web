@@ -72,15 +72,20 @@ export default function DashboardShell({ children }) {
         </div>
       )}
 
-      {/* Hamburger mobile - gunakan key untuk force remount saat pathname berubah */}
+      {/* Hamburger mobile dengan animasi slide dari kanan */}
       {showMobileHamburger && (
-        <div className="md:hidden fixed right-4 top-4 z-50">
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="md:hidden fixed right-4 top-4 z-50"
+        >
           <AnimatedHamburgerButton
             key={pathname} // force remount saat pathname berubah
             initialOpen={false} // selalu mulai dari false
             onToggle={setMobOpen}
           />
-        </div>
+        </motion.div>
       )}
 
       {/* Brand mobile dengan animasi - tampil saat mobile menu terbuka */}
@@ -91,7 +96,7 @@ export default function DashboardShell({ children }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -8, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden fixed left-5 top-5 z-50"
+            className="md:hidden fixed left-4 top-4 z-50"
           >
             <Link href="/" className="flex items-center gap-3">
               <Image

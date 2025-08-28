@@ -57,20 +57,37 @@ export default function LearnPage() {
 
   return (
     <div className="px-6 md:px-20 py-6">
-      {/* Breadcrumb + Title */}
-      <p className={`text-white/70 ${quicksand.className}`}>
-        Dashboard / <span className="text-white">Learn</span>
-      </p>
-      <h1
-        className={`mt-2 text-3xl md:text-4xl lg:text-5xl font-bold ${orbitron.className}`}
+      {/* Breadcrumb + Title dengan animasi */}
+      <motion.div
+        initial={{
+          // Mobile: slide dari kiri ke kanan
+          x: typeof window !== "undefined" && window.innerWidth < 768 ? -50 : 0,
+          // Desktop: fade in
+          opacity: typeof window !== "undefined" && window.innerWidth >= 768 ? 0 : 1,
+        }}
+        animate={{
+          x: 0,
+          opacity: 1,
+        }}
+        transition={{
+          duration: 0.5,
+          ease: "easeOut",
+        }}
       >
-        Belajar Huruf Bahasa Isyarat
-      </h1>
-      <p
-        className={`mt-2 text-white/85 ${quicksand.className} font-semibold`}
-      >
-        Pahami bentuk isyarat tangan sebelum mulai latihan
-      </p>
+        <p className={`text-white/70 ${quicksand.className}`}>
+          Dashboard / <span className="text-white">Learn</span>
+        </p>
+        <h1
+          className={`mt-2 text-3xl md:text-4xl lg:text-5xl font-bold ${orbitron.className}`}
+        >
+          Belajar Huruf Bahasa Isyarat
+        </h1>
+        <p
+          className={`mt-2 text-white/85 ${quicksand.className} font-semibold`}
+        >
+          Pahami bentuk isyarat tangan sebelum mulai latihan
+        </p>
+      </motion.div>
 
       {/* Grid huruf dengan animasi stagger */}
       <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6">

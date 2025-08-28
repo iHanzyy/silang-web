@@ -1,9 +1,10 @@
 // src/app/dashboard/practice/page.js
 "use client";
 
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import PracticeModuleCard from "@/components/practice/PracticeModuleCard";
 import { orbitron, quicksand } from "@/lib/fonts";
-import { useEffect, useState } from "react";
 import {
   readProgress,
   getPercentFor,
@@ -21,6 +22,7 @@ const CARDS = [
 
 export default function PracticePage() {
   const [progressMap, setProgressMap] = useState({});
+  const [visibleCards, setVisibleCards] = useState(new Set()); // Set cards yang sudah muncul
 
   useEffect(() => {
     const p = readProgress();
@@ -30,9 +32,43 @@ export default function PracticePage() {
     setProgressMap(map);
   }, []);
 
+  // Animasi cards muncul satu persatu
+  useEffect(() => {
+    let timeouts = [];
+    
+    CARDS.forEach((card, index) => {
+      const timeout = setTimeout(() => {
+        setVisibleCards(prev => new Set([...prev, card.id]));
+      }, index * 150); // delay 150ms antar card (sedikit lebih lama dari Learn karena card lebih besar)
+      
+      timeouts.push(timeout);
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, []);
+
   return (
     <div className="px-6 md:px-20 py-6">
-      <div className="flex items-center justify-between">
+      {/* Breadcrumb + Title dengan animasi */}
+      <motion.div
+        initial={{
+          // Mobile: slide dari kiri ke kanan
+          x: typeof window !== "undefined" && window.innerWidth < 768 ? -50 : 0,
+          // Desktop: fade in
+          opacity: typeof window !== "undefined" && window.innerWidth >= 768 ? 0 : 1,
+        }}
+        animate={{
+          x: 0,
+          opacity: 1,
+        }}
+        transition={{
+          duration: 0.5,
+          ease: "easeOut",
+        }}
+        className="flex items-center justify-between"
+      >
         <div>
           <p className={`text-white/70 ${quicksand.className}`}>
             Dashboard / <span className="text-white">Practice</span>
@@ -44,21 +80,53 @@ export default function PracticePage() {
             Pilih modul dan mulai tantangan!
           </p>
         </div>
-      </div>
+      </motion.div>
 
+      {/* Grid module cards dengan animasi stagger */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {CARDS.map((m) => (
-          <PracticeModuleCard
+          <AnimatedPracticeCard
             key={m.id}
-            id={m.id}
-            status={m.status}
-            title={m.title}
-            desc={m.desc}
+            card={m}
             progress={progressMap[m.id] ?? 0}
-            href={m.href}
+            isVisible={visibleCards.has(m.id)}
           />
         ))}
       </div>
     </div>
+  );
+}
+
+// Wrapper component untuk animasi individual card
+function AnimatedPracticeCard({ card, progress, isVisible }) {
+  if (!isVisible) {
+    // Card belum visible, return placeholder kosong
+    return <div className="aspect-[4/3]" />;
+  }
+
+  return (
+    <motion.div
+      initial={{
+        scale: 0,
+        opacity: 0,
+      }}
+      animate={{
+        scale: 1,
+        opacity: 1,
+      }}
+      transition={{
+        duration: 0.4,
+        ease: "easeOut",
+      }}
+    >
+      <PracticeModuleCard
+        id={card.id}
+        status={card.status}
+        title={card.title}
+        desc={card.desc}
+        progress={progress}
+        href={card.href}
+      />
+    </motion.div>
   );
 }
