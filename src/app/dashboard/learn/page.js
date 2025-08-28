@@ -201,15 +201,15 @@ function LetterViewerModal({ letter, onClose }) {
         aria-hidden="true"
       />
 
-      {/* Container utama */}
-      <div className="relative h-full w-full p-4 md:p-6">
-        {/* Panel */}
-        <div className="mx-auto h-full max-w-6xl rounded-[36px] ring-1 ring-white/12 overflow-hidden bg-[#0F1B57]/95">
+      {/* Container utama - responsive untuk mobile */}
+      <div className="relative h-full w-full p-4 md:p-6 flex items-center justify-center md:items-start md:justify-start">
+        {/* Panel - ukuran disesuaikan untuk mobile */}
+        <div className="w-full max-w-sm md:max-w-6xl h-auto md:h-full rounded-[24px] md:rounded-[36px] ring-1 ring-white/12 overflow-hidden bg-[#0F1B57]/95 md:mx-auto">
           {/* Top bar */}
-          <div className="flex items-center justify-between h-14 px-5 md:px-6 bg-[#1A2A80]">
+          <div className="flex items-center justify-between h-12 md:h-14 px-4 md:px-6 bg-[#1A2A80]">
             <h2
               id="viewer-title"
-              className={`text-white text-xl md:text-2xl font-bold ${orbitron.className}`}
+              className={`text-white text-lg md:text-2xl font-bold ${orbitron.className}`}
             >
               Huruf {letter}
             </h2>
@@ -217,19 +217,20 @@ function LetterViewerModal({ letter, onClose }) {
             <button
               onClick={onClose}
               className="
-                inline-flex items-center gap-2 px-3 py-1.5
+                inline-flex items-center gap-2 px-2 py-1 md:px-3 md:py-1.5
                 rounded-xl ring-1 ring-white/25 text-white
                 bg-white/10 hover:bg-white/14
                 cursor-pointer
               "
             >
-              Exit <X size={16} aria-hidden />
+              <span className="hidden md:inline">Exit</span>
+              <X size={16} aria-hidden />
             </button>
           </div>
 
-          {/* Konten (panel terang untuk gambar) */}
-          <div className="p-5 md:p-7">
-            <div className="relative w-full rounded-2xl bg-[#F9F6EE] overflow-hidden min-h-[55vh] md:min-h-[80vh]">
+          {/* Konten (panel terang untuk gambar) - ukuran mobile disesuaikan */}
+          <div className="p-4 md:p-7">
+            <div className="relative w-full rounded-2xl bg-[#F9F6EE] overflow-hidden h-[40vh] md:min-h-[80vh]">
               <Image
                 src={`/letters/${letter}.png`}
                 alt={`Isyarat huruf ${letter}`}

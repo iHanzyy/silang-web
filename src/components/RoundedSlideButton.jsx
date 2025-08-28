@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Icon } from "lucide-react";
 
 /**
- * RoundedSlideButton (robust icon for forwardRef, smooth + scale on hover)
+ * RoundedSlideButton with Blob Animation (gooey effect)
  */
 export default function RoundedSlideButton({
   label = "Sign Up Free",
@@ -25,27 +25,33 @@ export default function RoundedSlideButton({
   // Fallback: kalau icon === undefined → pakai ArrowRight (default)
   const finalIcon = icon === undefined ? ArrowRight : icon;
 
-  // Animasi
+  // Animasi wrapper (scale effect)
   const wrapper = {
-    rest:  { scale: 1, boxShadow: "0 0 0 rgba(0,0,0,0)" },
-    hover: { scale: 1.03, boxShadow: "0 10px 24px rgba(0,0,0,0.18)" },
+    rest:  { scale: 1 },
+    hover: { scale: 1.03 },
     tap:   { scale: 0.99 },
   };
-  const overlay = {
-    rest:  { clipPath: "circle(0% at 12% 50%)" },
-    hover: {
-      clipPath: "circle(145% at 12% 50%)",
-      transition: { type: "spring", mass: 0.6, stiffness: 170, damping: 26 },
-    },
-    tap: {
-      clipPath: "circle(160% at 12% 50%)",
-      transition: { type: "spring", mass: 0.6, stiffness: 200, damping: 22 },
-    },
-  };
+
+  // Animasi konten (color change)
   const content = {
     rest:  { color: "#FFFFFF" },
-    hover: { color: textPurple, transition: { duration: 0.22, ease: "easeOut" } },
+    hover: { 
+      color: textPurple, 
+      transition: { duration: 0.5 } 
+    },
     tap:   { color: textPurple },
+  };
+
+  // Animasi blob individual
+  const blobVariants = {
+    rest: {
+      transform: "translate3d(0, 150%, 0) scale(1.4)",
+      transition: { duration: 0.45 }
+    },
+    hover: {
+      transform: "translateZ(0) scale(1.4)",
+      transition: { duration: 0.45 }
+    }
   };
 
   // --- Render ikon secara aman (support forwardRef object) ---
@@ -79,44 +85,79 @@ export default function RoundedSlideButton({
   };
 
   return (
-    <motion.div
-      initial="rest"
-      animate="rest"
-      whileHover="hover"
-      whileFocus="hover"
-      whileTap="tap"
-      variants={wrapper}
-      transition={{ type: "spring", stiffness: 260, damping: 20 }}
-      className={`inline-block ${className}`}
-    >
-      <Comp
-        {...(href ? { href } : { onClick })}
-        {...(!href ? { type: "button" } : {})}
-        className="
-          group relative overflow-hidden
-          inline-flex items-center justify-center
-          rounded-xl px-5 py-2.5
-          font-semibold tracking-wide
-          focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60
-          ring-2 ring-inset transition-shadow
-        "
-        style={{ ["--tw-ring-color"]: borderColor }}
-      >
-        {/* Fill */}
-        <motion.span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-xl"
-          style={{ backgroundColor: color }}
-          variants={overlay}
-        />
+    <>
+      {/* SVG Gooey Filter */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <filter id="goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo" />
+            <feBlend in="SourceGraphic" in2="goo" />
+          </filter>
+        </defs>
+      </svg>
 
-        {/* Konten */}
-        <motion.span className="relative z-10 inline-flex items-center gap-2" variants={content}>
-          {iconPlacement === "left" && renderIcon()}
-          <span>{label}</span>
-          {iconPlacement === "right" && renderIcon()}
-        </motion.span>
-      </Comp>
-    </motion.div>
+      <motion.div
+        initial="rest"
+        animate="rest"
+        whileHover="hover"
+        whileFocus="hover"
+        whileTap="tap"
+        variants={wrapper}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        className={`inline-block ${className}`}
+      >
+        <Comp
+          {...(href ? { href } : { onClick })}
+          {...(!href ? { type: "button" } : {})}
+          className="
+            group relative overflow-hidden
+            inline-flex items-center justify-center
+            rounded-xl px-5 py-2.5
+            font-semibold tracking-wide
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60
+            transition-colors duration-500
+          "
+          style={{ 
+            border: `2px solid ${borderColor}`,
+            backgroundColor: 'transparent'
+          }}
+        >
+          {/* Blob Container */}
+          <div 
+            className="absolute inset-0 rounded-xl overflow-hidden"
+            style={{ filter: 'url(#goo)' }}
+          >
+            {/* 4 Blobs */}
+            {[0, 1, 2, 3].map((i) => (
+              <motion.div
+                key={i}
+                className="absolute top-0 h-full rounded-full"
+                style={{
+                  width: '25%', // 100% / 4
+                  left: `${i * 30}%`, // (i * 120% / 4)
+                  backgroundColor: color,
+                }}
+                variants={blobVariants}
+                transition={{
+                  duration: 0.45,
+                  delay: i * 0.08, // staggered delay
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Konten */}
+          <motion.span 
+            className="relative z-10 inline-flex items-center gap-2" 
+            variants={content}
+          >
+            {iconPlacement === "left" && renderIcon()}
+            <span>{label}</span>
+            {iconPlacement === "right" && renderIcon()}
+          </motion.span>
+        </Comp>
+      </motion.div>
+    </>
   );
 }

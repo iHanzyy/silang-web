@@ -186,7 +186,7 @@ export default function Navbar() {
                 </Link>
 
                 <Link
-                  href="#get-started"
+                  href="/dashboard"
                   onClick={() => setMobileOpen(false)}
                   className="mt-1 inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3
                              text-white font-semibold
