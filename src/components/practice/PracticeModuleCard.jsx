@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Play, RotateCcw } from "lucide-react";
+import { Play, RotateCcw, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { orbitron, quicksand } from "@/lib/fonts";
 import { setModuleProgress } from "@/lib/progress";
@@ -93,6 +93,72 @@ function ResetConfirmationModal({ isOpen, onClose, onConfirm, moduleTitle }) {
   );
 }
 
+// Modal Belum Tersedia di Mobile
+function MobileNotAvailableModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[90] flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+
+        {/* Modal content */}
+        <motion.div
+          className="relative mx-4 w-full max-w-md"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="rounded-2xl bg-[#1A2A80] p-6 ring-1 ring-white/20">
+            {/* Header */}
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-700/20">
+                <Smartphone className="h-6 w-6 text-orange-600" />
+              </div>
+              <h3 className={`text-xl font-bold text-white ${orbitron.className}`}>
+                Belum Tersedia di Mobile
+              </h3>
+              <p className={`mt-2 text-sm text-white/70 ${quicksand.className}`}>
+                Mohon maaf Latihan modul belum tersedia di mobile, silahkan menggunakan PC/Laptop agar dapat berlatih dengan modul!
+              </p>
+            </div>
+
+            {/* Button */}
+            <div className="mt-6">
+              <button
+                onClick={onClose}
+                className={`
+                  w-full rounded-xl bg-blue-600 
+                  py-3 px-4 text-sm font-semibold text-white 
+                  hover:bg-blue-500 transition-colors
+                  ${quicksand.className}
+                  cursor-pointer
+                `}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 export default function PracticeModuleCard({
   id,                                // "mod-1", "mod-2", etc.
   status = "Tersedia",              // 'Selesai' | 'Berjalan' | 'Tersedia'
@@ -102,13 +168,37 @@ export default function PracticeModuleCard({
   href = "#",                       // link tombol kanan-bawah
 }) {
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showMobileModal, setShowMobileModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
   const isCompleted = progress >= 100;
   const style = STATUS_STYLE[status] ?? STATUS_STYLE.Tersedia;
+
+  // Detect mobile on component mount
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   const handleResetClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setShowResetModal(true);
+  };
+
+  const handlePlayClick = (e) => {
+    if (isMobile) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowMobileModal(true);
+    }
+    // Jika bukan mobile, Link akan berfungsi normal
   };
 
   const handleResetConfirm = () => {
@@ -208,6 +298,7 @@ export default function PracticeModuleCard({
               // Button Play/Continue
               <Link
                 href={href}
+                onClick={handlePlayClick}
                 className="
                   inline-flex h-9 w-9 items-center justify-center
                   rounded-full bg-white/10 hover:bg-white/20
@@ -231,6 +322,12 @@ export default function PracticeModuleCard({
         onClose={() => setShowResetModal(false)}
         onConfirm={handleResetConfirm}
         moduleTitle={title}
+      />
+
+      {/* Modal Belum Tersedia di Mobile */}
+      <MobileNotAvailableModal
+        isOpen={showMobileModal}
+        onClose={() => setShowMobileModal(false)}
       />
     </>
   );
