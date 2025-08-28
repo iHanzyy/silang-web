@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle } from "lucide-react";
 import { orbitron, quicksand } from "@/lib/fonts";
 
 const MODULE_TITLES = {
@@ -33,90 +34,90 @@ export default function ModuleCompletionModal({ moduleId, onClose }) {
   };
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[80] flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      initial={{
-        scale: 0.8,
-        opacity: 0,
-      }}
-      animate={{
-        scale: 1,
-        opacity: 1,
-      }}
-      exit={{
-        scale: 0.8,
-        opacity: 0,
-      }}
-      transition={{
-        duration: 0.3,
-        ease: "easeOut",
-      }}
-    >
-      {/* Backdrop - NO onClick handler, cannot close by clicking outside */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        aria-hidden="true"
-      />
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[90] flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          aria-hidden="true"
+        />
 
-      {/* Modal content */}
-      <div className="relative mx-4 w-full max-w-2xl">
-        <div 
-          className="rounded-[32px] overflow-hidden"
-          style={{
-            background: "linear-gradient(180deg, #2E4BC5 0%, #1A237E 100%)"
-          }}
+        {/* Modal content */}
+        <motion.div
+          className="relative mx-4 w-full max-w-md"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ duration: 0.2 }}
         >
-          {/* Header */}
-          <div className="px-8 py-6 bg-[#1A2A80]">
-            <h2 className={`text-white text-2xl md:text-3xl font-bold text-center ${orbitron.className}`}>
-              {moduleTitle}
-            </h2>
-          </div>
+          <div className="rounded-2xl bg-[#1A2A80] p-6 ring-1 ring-white/20">
+            {/* Header */}
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-700/20">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className={`text-xl font-bold text-white ${orbitron.className}`}>
+                Modul Selesai!
+              </h3>
+              <p className={`mt-2 text-sm text-white/70 ${quicksand.className}`}>
+                Selamat, kamu telah menyelesaikan <strong>{moduleTitle}</strong> dengan baik!
+              </p>
+            </div>
 
-          {/* Content */}
-          <div className="px-8 py-12 text-center">
-            <h3 className={`text-white text-xl md:text-2xl font-semibold leading-relaxed ${quicksand.className}`}>
-              Selamat, kamu telah menyelesaikan<br />
-              {moduleTitle.toLowerCase()} dengan baik
-            </h3>
-          </div>
-
-          {/* Footer buttons */}
-          <div className="px-8 pb-8 flex items-center justify-between gap-4">
-            <button
-              onClick={handleExit}
-              className={`
-                px-8 py-3 rounded-2xl border-2 border-white/30
-                bg-white/10 hover:bg-white/20
-                text-white font-semibold text-lg
-                transition-all duration-200
-                ${quicksand.className}
-                cursor-pointer
-              `}
-            >
-              Exit
-            </button>
-
-            {!isLastModule && (
+            {/* Buttons */}
+            <div className="mt-6 flex gap-3">
               <button
-                onClick={handleNext}
+                onClick={handleExit}
                 className={`
-                  px-8 py-3 rounded-2xl border-2 border-white/30
-                  bg-white/10 hover:bg-white/20
-                  text-white font-semibold text-lg
-                  transition-all duration-200
+                  flex-1 rounded-xl border border-white/30 bg-white/10 
+                  py-3 px-4 text-sm font-semibold text-white 
+                  hover:bg-white/20 transition-colors
                   ${quicksand.className}
                   cursor-pointer
                 `}
               >
-                Next
+                Exit
               </button>
-            )}
+              {!isLastModule && (
+                <button
+                  onClick={handleNext}
+                  className={`
+                    flex-1 rounded-xl bg-green-600 
+                    py-3 px-4 text-sm font-semibold text-white 
+                    hover:bg-green-500 transition-colors
+                    ${quicksand.className}
+                    cursor-pointer
+                  `}
+                >
+                  Next
+                </button>
+              )}
+              {isLastModule && (
+                <button
+                  onClick={handleExit}
+                  className={`
+                    flex-1 rounded-xl bg-green-600 
+                    py-3 px-4 text-sm font-semibold text-white 
+                    hover:bg-green-500 transition-colors
+                    ${quicksand.className}
+                    cursor-pointer
+                  `}
+                >
+                  Selesai
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </motion.div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
