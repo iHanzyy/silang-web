@@ -22,7 +22,13 @@ const CARDS = [
 
 export default function PracticePage() {
   const [progressMap, setProgressMap] = useState({});
-  const [visibleCards, setVisibleCards] = useState(new Set()); // Set cards yang sudah muncul
+  const [visibleCards, setVisibleCards] = useState(new Set());
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Pastikan komponen sudah mounted
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const p = readProgress();
@@ -32,14 +38,16 @@ export default function PracticePage() {
     setProgressMap(map);
   }, []);
 
-  // Animasi cards muncul satu persatu
+  // Animasi cards muncul satu persati
   useEffect(() => {
+    if (!isMounted) return;
+    
     let timeouts = [];
     
     CARDS.forEach((card, index) => {
       const timeout = setTimeout(() => {
         setVisibleCards(prev => new Set([...prev, card.id]));
-      }, index * 150); // delay 150ms antar card (sedikit lebih lama dari Learn karena card lebih besar)
+      }, index * 150);
       
       timeouts.push(timeout);
     });
@@ -47,26 +55,22 @@ export default function PracticePage() {
     return () => {
       timeouts.forEach(clearTimeout);
     };
-  }, []);
+  }, [isMounted]);
+
+  // Definisi animasi yang konsisten
+  const headerAnimation = {
+    initial: { x: 0, opacity: 0 },
+    animate: { x: 0, opacity: 1 },
+    transition: { duration: 0.5, ease: "easeOut" }
+  };
 
   return (
     <div className="px-6 md:px-20 py-6">
-      {/* Breadcrumb + Title dengan animasi */}
+      {/* Breadcrumb + Title dengan animasi yang konsisten */}
       <motion.div
-        initial={{
-          // Mobile: slide dari kiri ke kanan
-          x: typeof window !== "undefined" && window.innerWidth < 768 ? -50 : 0,
-          // Desktop: fade in
-          opacity: typeof window !== "undefined" && window.innerWidth >= 768 ? 0 : 1,
-        }}
-        animate={{
-          x: 0,
-          opacity: 1,
-        }}
-        transition={{
-          duration: 0.5,
-          ease: "easeOut",
-        }}
+        initial={headerAnimation.initial}
+        animate={headerAnimation.animate}
+        transition={headerAnimation.transition}
         className="flex items-center justify-between"
       >
         <div>
@@ -90,6 +94,7 @@ export default function PracticePage() {
             card={m}
             progress={progressMap[m.id] ?? 0}
             isVisible={visibleCards.has(m.id)}
+            isMounted={isMounted}
           />
         ))}
       </div>
@@ -98,9 +103,9 @@ export default function PracticePage() {
 }
 
 // Wrapper component untuk animasi individual card
-function AnimatedPracticeCard({ card, progress, isVisible }) {
-  if (!isVisible) {
-    // Card belum visible, return placeholder kosong
+function AnimatedPracticeCard({ card, progress, isVisible, isMounted }) {
+  if (!isVisible || !isMounted) {
+    // Card belum visible atau belum mounted, return placeholder kosong
     return <div className="aspect-[4/3]" />;
   }
 

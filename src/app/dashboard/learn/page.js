@@ -12,28 +12,25 @@ const LETTERS = Array.from({ length: 26 }, (_, i) =>
 );
 
 export default function LearnPage() {
-  const [openLetter, setOpenLetter] = useState(null); // "A"|"B"|...|null
-  const [visibleCards, setVisibleCards] = useState(new Set()); // Set huruf yang sudah muncul
+  const [openLetter, setOpenLetter] = useState(null);
+  const [visibleCards, setVisibleCards] = useState(new Set());
+  const [isMounted, setIsMounted] = useState(false);
 
-  // (opsional) kunci scroll saat modal terbuka
+  // Pastikan komponen sudah mounted untuk menghindari hydration mismatch
   useEffect(() => {
-    if (openLetter) {
-      const prev = document.documentElement.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      return () => {
-        document.documentElement.style.overflow = prev;
-      };
-    }
-  }, [openLetter]);
+    setIsMounted(true);
+  }, []);
 
   // Animasi cards muncul satu persatu
   useEffect(() => {
+    if (!isMounted) return;
+    
     let timeouts = [];
     
     LETTERS.forEach((letter, index) => {
       const timeout = setTimeout(() => {
         setVisibleCards(prev => new Set([...prev, letter]));
-      }, index * 100); // delay 100ms antar card
+      }, index * 100);
       
       timeouts.push(timeout);
     });
@@ -41,11 +38,10 @@ export default function LearnPage() {
     return () => {
       timeouts.forEach(clearTimeout);
     };
-  }, []);
+  }, [isMounted]);
 
   const handleOpen = useCallback(
     (ch) => {
-      // Hanya bisa dibuka jika card sudah visible
       if (visibleCards.has(ch)) {
         setOpenLetter(ch);
       }
@@ -55,24 +51,20 @@ export default function LearnPage() {
   
   const handleClose = useCallback(() => setOpenLetter(null), []);
 
+  // Definisi animasi yang konsisten
+  const headerAnimation = {
+    initial: { x: 0, opacity: 0 },
+    animate: { x: 0, opacity: 1 },
+    transition: { duration: 0.5, ease: "easeOut" }
+  };
+
   return (
     <div className="px-6 md:px-20 py-6">
-      {/* Breadcrumb + Title dengan animasi */}
+      {/* Breadcrumb + Title dengan animasi yang konsisten */}
       <motion.div
-        initial={{
-          // Mobile: slide dari kiri ke kanan
-          x: typeof window !== "undefined" && window.innerWidth < 768 ? -50 : 0,
-          // Desktop: fade in
-          opacity: typeof window !== "undefined" && window.innerWidth >= 768 ? 0 : 1,
-        }}
-        animate={{
-          x: 0,
-          opacity: 1,
-        }}
-        transition={{
-          duration: 0.5,
-          ease: "easeOut",
-        }}
+        initial={headerAnimation.initial}
+        animate={headerAnimation.animate}
+        transition={headerAnimation.transition}
       >
         <p className={`text-white/70 ${quicksand.className}`}>
           Dashboard / <span className="text-white">Learn</span>
@@ -97,6 +89,7 @@ export default function LearnPage() {
             letter={ch}
             onClick={() => handleOpen(ch)}
             isVisible={visibleCards.has(ch)}
+            isMounted={isMounted}
           />
         ))}
       </div>
@@ -113,9 +106,9 @@ export default function LearnPage() {
 
 /* ===================== Tile ===================== */
 
-function LearnTile({ letter, onClick, isVisible }) {
-  if (!isVisible) {
-    // Card belum visible, return placeholder kosong
+function LearnTile({ letter, onClick, isVisible, isMounted }) {
+  if (!isVisible || !isMounted) {
+    // Card belum visible atau belum mounted, return placeholder kosong
     return <div className="aspect-square" />;
   }
 
