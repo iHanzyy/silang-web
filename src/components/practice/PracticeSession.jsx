@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { LogOut, X } from "lucide-react";
 import PracticeCamera from "./PracticeCamera";
 import ModuleCompletionModal from "./ModuleCompletionModal";
@@ -128,7 +128,7 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
         });
       }
 
-      // Update UI state segera
+      // Update UI state segera - trigger animasi dengan state change
       setCurrentIdx(nextWordIdx);
       setLetterIdx(nextLetterIdx);
       
@@ -180,6 +180,30 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
         </span>
       );
     });
+  };
+
+  // Animation variants untuk flip transition
+  const flipVariants = {
+    initial: {
+      rotateY: -90,
+      opacity: 0,
+    },
+    animate: {
+      rotateY: 0,
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        ease: "easeInOut"
+      }
+    },
+    exit: {
+      rotateY: 90,
+      opacity: 0,
+      transition: {
+        duration: 0.3,
+        ease: "easeInOut"
+      }
+    }
   };
 
   // Module titles
@@ -274,25 +298,42 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
                   </div>
                 )}
 
-                {/* Panel Putih dengan Gambar Huruf */}
+                {/* Panel Putih dengan Gambar Huruf - Dengan Animasi */}
                 <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 w-60 h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 flex items-center justify-center">
-                  {target && (
-                    <img
-                      src={`/letters/${currentTargetLetter}.png`}
-                      alt={currentTargetLetter}
-                      className="w-full h-full object-contain"
-                      key={`img-${currentTargetLetter}`}
-                    />
-                  )}
+                  <AnimatePresence mode="wait">
+                    {target && (
+                      <motion.img
+                        key={`img-${currentTargetLetter}-${currentIdx}-${letterIdx}`}
+                        src={`/letters/${currentTargetLetter}.png`}
+                        alt={currentTargetLetter}
+                        className="w-full h-full object-contain"
+                        variants={flipVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        style={{ perspective: "1000px" }}
+                      />
+                    )}
+                  </AnimatePresence>
                 </div>
 
-                {/* Huruf yang sedang dipraktikkan */}
-                <div 
-                  className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold ${orbitron.className} ${
-                    isCorrectLetter && prediction.isHolding ? "text-yellow-400" : "text-white"
-                  }`}
-                >
-                  {currentTargetLetter}
+                {/* Huruf yang sedang dipraktikkan - Dengan Animasi */}
+                <div className="relative">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`text-${currentTargetLetter}-${currentIdx}-${letterIdx}`}
+                      className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold ${orbitron.className} ${
+                        isCorrectLetter && prediction.isHolding ? "text-yellow-400" : "text-white"
+                      }`}
+                      variants={flipVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      style={{ perspective: "1000px" }}
+                    >
+                      {currentTargetLetter}
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
