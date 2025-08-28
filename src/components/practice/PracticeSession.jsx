@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import PracticeCamera from "./PracticeCamera";
 import ModuleCompletionModal from "./ModuleCompletionModal";
 import { MODULES, getModuleById } from "@/lib/practiceData";
@@ -164,7 +164,7 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
   // Fix the isCorrectLetter calculation
   const isCorrectLetter = prediction.letter === currentTargetLetter;
 
-  // Generate footer word display untuk mod-6
+  // Generate word display untuk mod-6
   const getWordDisplay = () => {
     if (moduleId !== "mod-6" || !target) return null;
     
@@ -174,7 +174,7 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
       return (
         <span
           key={idx}
-          className={`text-4xl font-bold ${completed ? "text-yellow-400" : "text-white"} ${quicksand.className}`}
+          className={`text-3xl md:text-4xl lg:text-5xl font-bold ${completed ? "text-yellow-400" : "text-white"} ${quicksand.className}`}
         >
           {letter.toUpperCase()}
         </span>
@@ -197,101 +197,112 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#1D2968] to-[#3A52CE]">
+    <div className="h-screen overflow-hidden bg-gradient-to-b from-[#1D2968] to-[#3A52CE] flex flex-col">
       {/* Navbar */}
-      <nav className="bg-[#1A2A80] px-6 py-4">
+      <nav className="bg-[#1A2A80] px-4 md:px-6 py-3 md:py-4 flex-shrink-0">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Exit Button */}
           <button
             onClick={handleExit}
             className="
-              inline-flex items-center gap-2 px-4 py-2
+              inline-flex items-center gap-2 px-3 md:px-4 py-2
               rounded-xl ring-1 ring-white/25 text-white
               bg-white/10 hover:bg-white/20
               transition-colors duration-200
+              cursor-pointer text-sm md:text-base
             "
           >
-            <X size={18} />
+            <LogOut size={16} className="md:w-[18px] md:h-[18px]" />
             Exit
           </button>
 
           {/* Title */}
-          <h1 className={`text-white text-xl md:text-2xl font-bold ${orbitron.className}`}>
+          <h1 className={`text-white text-lg md:text-xl lg:text-2xl font-bold ${orbitron.className}`}>
             Tantangan Rangkai Kata
           </h1>
 
           {/* Placeholder untuk balance layout */}
-          <div className="w-20"></div>
+          <div className="w-16 md:w-20"></div>
         </div>
       </nav>
 
-      {/* Header - Module Title */}
-      <div className="px-6 py-8">
+      {/* Header - Module Title - Font Dikecilkan */}
+      <div className="px-4 md:px-6 py-3 md:py-4 lg:py-6 flex-shrink-0">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className={`text-white text-3xl md:text-4xl lg:text-5xl font-bold ${orbitron.className}`}>
+          <h2 className={`text-white text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold ${orbitron.className}`}>
             {MODULE_TITLES[moduleId] || "Modul"}
           </h2>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="px-6 pb-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
-            {/* Kiri: Kamera */}
-            <div className="flex-shrink-0 relative">
-              <PracticeCamera onPrediction={handlePrediction} />
-              
-              {/* Hold progress indicator */}
-              {prediction.isHolding && isCorrectLetter && holdProgress > 0 && (
-                <div className="absolute bottom-4 left-0 right-0 mx-auto w-3/4 bg-black bg-opacity-50 rounded-full h-4 overflow-hidden">
-                  <div 
-                    className="bg-green-400 h-full transition-all duration-100 ease-linear"
-                    style={{ width: `${holdProgress}%` }}
-                  />
+      {/* Main Content - Mengisi sisa ruang */}
+      <div className="flex-1 px-4 md:px-6 flex flex-col items-center justify-center">
+        <div className="max-w-7xl mx-auto w-full h-full flex flex-col justify-center">
+          {/* Container dengan rounded top custom */}
+          <div 
+            className="p-4 md:p-6 lg:p-8"
+            style={{
+              borderTopLeftRadius: '60px',
+              borderTopRightRadius: '60px'
+            }}
+          >
+            {/* Kamera dan Image Panel */}
+            <div className="flex flex-col lg:flex-row gap-6 md:gap-8 lg:gap-32 xl:gap-52 items-center justify-center">
+              {/* Kiri: Kamera */}
+              <div className="flex-shrink-0 relative">
+                <div className="scale-75 md:scale-90 lg:scale-100">
+                  <PracticeCamera onPrediction={handlePrediction} />
                 </div>
-              )}
-            </div>
-
-            {/* Kanan: Image Panel + Letter */}
-            <div className="flex flex-col items-center gap-6">
-              {/* Panel Putih dengan Gambar Huruf */}
-              <div className="bg-white rounded-3xl p-8 w-80 h-80 flex items-center justify-center">
-                {target && (
-                  <img
-                    src={`/letters/${currentTargetLetter}.png`}
-                    alt={currentTargetLetter}
-                    className="w-full h-full object-contain"
-                    key={`img-${currentTargetLetter}`}
-                  />
+                
+                {/* Hold progress indicator */}
+                {prediction.isHolding && isCorrectLetter && holdProgress > 0 && (
+                  <div className="absolute bottom-2 md:bottom-4 left-0 right-0 mx-auto w-3/4 bg-black bg-opacity-50 rounded-full h-3 md:h-4 overflow-hidden">
+                    <div 
+                      className="bg-green-400 h-full transition-all duration-100 ease-linear"
+                      style={{ width: `${holdProgress}%` }}
+                    />
+                  </div>
                 )}
               </div>
 
-              {/* Huruf yang sedang dipraktikkan */}
-              <div 
-                className={`text-6xl md:text-7xl font-bold ${orbitron.className} ${
-                  isCorrectLetter && prediction.isHolding ? "text-yellow-400" : "text-white"
-                }`}
-              >
-                {currentTargetLetter}
+              {/* Kanan: Image Panel + Letter */}
+              <div className="flex flex-col items-center gap-4 md:gap-6">
+                {/* Panel Putih dengan Gambar Huruf */}
+                <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 w-60 h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 flex items-center justify-center">
+                  {target && (
+                    <img
+                      src={`/letters/${currentTargetLetter}.png`}
+                      alt={currentTargetLetter}
+                      className="w-full h-full object-contain"
+                      key={`img-${currentTargetLetter}`}
+                    />
+                  )}
+                </div>
+
+                {/* Huruf yang sedang dipraktikkan */}
+                <div 
+                  className={`text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold ${orbitron.className} ${
+                    isCorrectLetter && prediction.isHolding ? "text-yellow-400" : "text-white"
+                  }`}
+                >
+                  {currentTargetLetter}
+                </div>
               </div>
             </div>
+
+            {/* Word Display untuk Mod-6 - Dipindah ke tengah-tengah bagian bawah */}
+            {moduleId === "mod-6" && target && (
+              <div className="mt-8 lg:mt-10">
+                <div className="text-center">
+                  <div className="inline-flex gap-1 md:gap-2 flex-wrap justify-center">
+                    {getWordDisplay()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Footer - Word Display untuk Mod-6 */}
-      {moduleId === "mod-6" && target && (
-        <div className="px-6 pb-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center">
-              <div className="inline-flex gap-2">
-                {getWordDisplay()}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Completion Modal */}
       <AnimatePresence>

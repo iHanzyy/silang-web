@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 const CANVAS_W = 640;
 const CANVAS_H = 480;
-const HOLD_DURATION = 2000;
+const HOLD_DURATION = 1000;
 const CONF_TH = 0.8;
 const LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
