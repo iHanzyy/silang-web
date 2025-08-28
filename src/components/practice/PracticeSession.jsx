@@ -267,6 +267,13 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
 
               {/* Kanan: Image Panel + Letter */}
               <div className="flex flex-col items-center gap-4 md:gap-6">
+                {/* Progress indicator untuk mod-6 */}
+                {moduleId === "mod-6" && (
+                  <div className={`text-base font-semibold text-yellow-400 ${quicksand.className}`}>
+                    Kata diselesaikan: {currentIdx}/{targets.length}
+                  </div>
+                )}
+
                 {/* Panel Putih dengan Gambar Huruf */}
                 <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 w-60 h-60 md:w-72 md:h-72 lg:w-80 lg:h-80 flex items-center justify-center">
                   {target && (
