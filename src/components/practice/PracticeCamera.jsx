@@ -60,7 +60,12 @@ export default function PracticeCamera({ onPrediction }) {
   
   // Function to normalize landmarks from hand detection
   function normalizeLandmarks(landmarks, wrist) {
-    return landmarks.map(lm => [lm.x - wrist.x, lm.y - wrist.y, lm.z - wrist.z]);
+    return landmarks.map(lm => [
+      // FLIP: Balik koordinat x untuk mengatasi mirror effect
+      -(lm.x - wrist.x), 
+      lm.y - wrist.y, 
+      lm.z - wrist.z
+    ]);
   }
   
   // Process landmarks from MediaPipe Hands
@@ -86,7 +91,8 @@ export default function PracticeCamera({ onPrediction }) {
       const rightHand = normalizeLandmarks(multiHandLandmarks[0], multiHandLandmarks[0][0]);
       rightHand.forEach(coord => features.push(...coord));
     } else if (multiHandLandmarks.length === 2) {
-      const sortedHands = [...multiHandLandmarks].sort((a, b) => a[0].x - b[0].x);
+      // FLIP: Balik urutan sorting - yang paling kanan dianggap kiri, yang paling kiri dianggap kanan
+      const sortedHands = [...multiHandLandmarks].sort((a, b) => b[0].x - a[0].x);
       const leftHand = normalizeLandmarks(sortedHands[0], sortedHands[0][0]);
       const rightHand = normalizeLandmarks(sortedHands[1], sortedHands[1][0]);
       leftHand.forEach(coord => features.push(...coord));
