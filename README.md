@@ -1,36 +1,177 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+````markdown
+<div align="center">
+  <img src="public/LogoSiLang.png" alt="SiLang Logo" width="80" height="80">
+  <h1>SiLang - Sign Language Learning Platform</h1>
+  <p><strong>Platform pembelajaran bahasa isyarat BISINDO interaktif dengan AI detection</strong></p>
+  
+  ![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)
+  ![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)
+  ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=flat-square&logo=tailwindcss)
+  ![Framer Motion](https://img.shields.io/badge/Framer_Motion-Animation-FF6B9D?style=flat-square)
+</div>
 
-## Getting Started
+## 📖 Tentang SiLang
 
-First, run the development server:
+**SiLang (Sign Language)** adalah platform pembelajaran bahasa isyarat Indonesia (BISINDO) yang interaktif dan mudah digunakan. Dikembangkan untuk semua usia, SiLang menggunakan teknologi AI untuk mendeteksi gerakan tangan dan memberikan feedback real-time kepada pengguna.
+
+### ✨ Fitur Utama
+
+- **📚 Learn Mode**: Pelajari bentuk isyarat tangan untuk setiap huruf A-Z dengan visualisasi yang jelas
+- **🎯 Practice Modules**: 6 modul latihan terstruktur:
+  - Modul 1-5: Latihan huruf berdasarkan kelompok (A-E, F-J, K-O, P-T, U-Z)
+  - Modul 6: Latihan kata kerja dalam bahasa isyarat
+- **🤖 AI Detection**: Deteksi gerakan tangan real-time menggunakan webcam
+- **📱 Responsive Design**: Optimized untuk desktop dan mobile
+- **🎨 Interactive UI**: Animasi smooth dengan Framer Motion
+- **💾 Progress Tracking**: Penyimpanan progress pembelajaran di localStorage
+
+### 🎯 Target Pengguna
+
+Platform ini dirancang untuk **semua usia** yang ingin belajar bahasa isyarat Indonesia, mulai dari anak-anak hingga dewasa, termasuk:
+- Pelajar dan mahasiswa
+- Guru dan pendidik
+- Keluarga dengan anggota tunarungu
+- Masyarakat umum yang ingin belajar BISINDO
+
+## 🚀 Demo
+
+🌐 **Live Demo**: [https://silang-web.vercel.app](https://silang-web.vercel.app) *(akan segera tersedia)*
+
+### 📸 Screenshots
+
+*Screenshots fitur utama akan ditambahkan setelah deployment*
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14, React 18
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **AI Detection**: MediaPipe / Custom Hand Detection Model
+- **Fonts**: Orbitron, Quicksand
+- **Storage**: localStorage
+- **Icons**: Lucide React
+
+## 📦 Instalasi & Setup
+
+### Prerequisites
+
+- Node.js 18+ 
+- npm, yarn, pnpm, atau bun
+
+### Clone Repository
+
+```bash
+git clone https://github.com/your-username/silang-web.git
+cd silang-web
+```
+
+### Install Dependencies
+
+```bash
+npm install
+# atau
+yarn install
+# atau
+pnpm install
+# atau
+bun install
+```
+
+### Jalankan Development Server
 
 ```bash
 npm run dev
-# or
+# atau
 yarn dev
-# or
+# atau
 pnpm dev
-# or
+# atau
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Build untuk Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## 📁 Struktur Proyek
 
-To learn more about Next.js, take a look at the following resources:
+```
+silang-web/
+├── src/
+│   ├── app/                 # App Router (Next.js 14)
+│   │   ├── dashboard/       # Dashboard pages
+│   │   │   ├── learn/       # Learn mode
+│   │   │   └── practice/    # Practice modules
+│   │   └── about/           # About page
+│   ├── components/          # Reusable components
+│   │   ├── dashboard/       # Dashboard-specific components
+│   │   ├── practice/        # Practice session components
+│   │   └── ui/              # General UI components
+│   ├── lib/                 # Utilities and configurations
+│   └── styles/              # Global styles
+├── public/
+│   ├── letters/             # Sign language images (A-Z)
+│   └── LogoSiLang.png
+└── README.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎮 Cara Penggunaan
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Mulai dengan Learn Mode**: Pelajari bentuk isyarat untuk setiap huruf
+2. **Lanjut ke Practice**: Pilih modul latihan sesuai kemampuan
+3. **Aktifkan Webcam**: Izinkan akses kamera untuk AI detection
+4. **Praktik Gerakan**: Ikuti instruksi dan dapatkan feedback real-time
+5. **Track Progress**: Lihat kemajuan pembelajaran Anda
 
-## Deploy on Vercel
+## 👥 Tim Pengembang
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **[Mohammad Jonah Setiawan](https://github.com/iHanzyy)** - Web Developer
+- **[Faiz Zaenal Muttaqin](https://github.com/faizaenal)** - UI/UX Designer
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📚 Referensi
+
+Data dan referensi bahasa isyarat berdasarkan **BISINDO (Bahasa Isyarat Indonesia)** yang merupakan sistem bahasa isyarat resmi di Indonesia.
+
+## 🤝 Kontribusi
+
+Kami menyambut kontribusi dari komunitas! Jika Anda ingin berkontribusi:
+
+1. Fork repository ini
+2. Buat branch fitur baru (`git checkout -b feature/AmazingFeature`)
+3. Commit perubahan Anda (`git commit -m 'Add some AmazingFeature'`)
+4. Push ke branch (`git push origin feature/AmazingFeature`)
+5. Buat Pull Request
+
+### Guidelines Kontribusi
+
+- Pastikan kode mengikuti konvensi yang ada
+- Tambahkan dokumentasi untuk fitur baru
+- Test fitur sebelum submit PR
+- Ikuti pola desain UI yang konsisten
+
+## 📄 License
+
+Proyek ini bersifat open source dan tersedia di bawah [MIT License](LICENSE).
+
+## 🙏 Acknowledgments
+
+- Terima kasih kepada komunitas BISINDO
+- Inspirasi dari kebutuhan pembelajaran bahasa isyarat yang mudah diakses
+- Tim penguji dan beta users
+
+## 📞 Kontak
+
+Jika ada pertanyaan atau saran, silakan buat [issue](https://github.com/iHanzyy/silang-web/issues) atau hubungi tim pengembang.
+
+---
+
+<div align="center">
+  <p>Dibuat dengan ❤️ oleh Tim SiLang</p>
+  <p>© 2025 SiLang. All rights reserved.</p>
+</div>
+````
