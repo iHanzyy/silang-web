@@ -83,7 +83,7 @@ export default function HeroSection() {
         >
           <div className="aspect-[16/10] w-full relative">
             <Image
-              src="/SilangBackgroundMain.png"
+              src="/SilangBackgroundMain.webp"
               alt="Sign Language Illustration"
               fill
               className="object-cover object-center rounded-3xl"

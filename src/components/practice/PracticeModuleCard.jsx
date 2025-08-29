@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Play, RotateCcw, Smartphone } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import { orbitron, quicksand } from "@/lib/fonts";
 import { setModuleProgress } from "@/lib/progress";
 
@@ -170,6 +170,11 @@ export default function PracticeModuleCard({
   const [showResetModal, setShowResetModal] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Motion values untuk animasi progress
+  const progressMotionValue = useMotionValue(0);
+  const animatedProgress = useTransform(progressMotionValue, (value) => Math.round(value));
   
   const isCompleted = progress >= 100;
   const style = STATUS_STYLE[status] ?? STATUS_STYLE.Tersedia;
@@ -182,9 +187,70 @@ export default function PracticeModuleCard({
     
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
+    setIsMounted(true);
     
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
+
+  // Animate progress when component mounts or progress changes
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const controls = animate(progressMotionValue, progress, {
+      duration: 0.8,
+      ease: [0.16, 1, 0.3, 1], // Custom cubic-bezier untuk smooth spring effect
+      delay: 0.2, // Small delay untuk stagger effect dengan card animation
+    });
+
+    return () => controls.stop();
+  }, [progress, progressMotionValue, isMounted]);
+
+  // Progress bar variants dengan glow effect
+  const progressBarVariants = {
+    initial: { 
+      width: "0%",
+      boxShadow: "0 0 0px rgba(106, 166, 255, 0)"
+    },
+    animate: (progress) => ({
+      width: `${Math.max(0, Math.min(100, progress))}%`,
+      boxShadow: progress > 0 ? "0 0 8px rgba(106, 166, 255, 0.6)" : "0 0 0px rgba(106, 166, 255, 0)",
+      transition: {
+        duration: 0.8,
+        ease: [0.16, 1, 0.3, 1],
+        delay: 0.2,
+      }
+    })
+  };
+
+  // Text percentage variants
+  const textVariants = {
+    initial: { 
+      opacity: 0, 
+      y: 10,
+      scale: 0.9
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+        delay: 0.4, // Delay setelah progress bar mulai mengisi
+      }
+    }
+  };
+
+  // Hover variants untuk progress bar
+  const progressHoverVariants = {
+    rest: { 
+      boxShadow: progress > 0 ? "0 0 8px rgba(106, 166, 255, 0.6)" : "0 0 0px rgba(106, 166, 255, 0)"
+    },
+    hover: {
+      boxShadow: progress > 0 ? "0 0 12px rgba(106, 166, 255, 0.8)" : "0 0 0px rgba(106, 166, 255, 0)",
+      transition: { duration: 0.3 }
+    }
+  };
 
   const handleResetClick = (e) => {
     e.preventDefault();
@@ -233,7 +299,7 @@ export default function PracticeModuleCard({
 
   return (
     <>
-      <article
+      <motion.article
         className="
           group relative overflow-hidden rounded-[24px] p-6
           bg-[#1A2A80] text-white
@@ -241,6 +307,12 @@ export default function PracticeModuleCard({
           transition-all duration-300
           hover:shadow-[0_12px_32px_rgba(0,0,0,0.3)]
         "
+        initial="rest"
+        whileHover="hover"
+        variants={{
+          rest: {},
+          hover: {}
+        }}
       >
         {/* badge status */}
         <div
@@ -262,21 +334,51 @@ export default function PracticeModuleCard({
           {desc}
         </p>
 
-        {/* Progress bar */}
+        {/* Progress bar dengan animasi */}
         <div className="mt-6">
-          <div className="h-2 w-full rounded-full bg-white/22">
-            <div
-              className="h-2 rounded-full bg-[#6AA6FF]"
-              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-            />
+          <div className="h-2 w-full rounded-full bg-white/22 overflow-hidden">
+            <motion.div
+              className="h-2 rounded-full bg-[#6AA6FF] relative"
+              custom={progress}
+              variants={progressBarVariants}
+              initial="initial"
+              animate={isMounted ? "animate" : "initial"}
+              whileHover="hover"
+              style={{
+                originX: 0, // Ensure animation starts from left
+              }}
+            >
+              {/* Shimmer effect overlay */}
+              {progress > 0 && (
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{
+                    duration: 1.5,
+                    ease: "easeInOut",
+                    delay: 1, // Start after progress bar animation
+                    repeat: Infinity,
+                    repeatDelay: 2,
+                  }}
+                />
+              )}
+            </motion.div>
           </div>
         </div>
 
-        {/* Footer bar */}
+        {/* Footer bar dengan animated text */}
         <div className="mt-4 flex items-center justify-between">
-          <span className={`text-[13px] text-white/80 ${quicksand.className}`}>
-            {Math.round(progress)}% selesai
-          </span>
+          <motion.span 
+            className={`text-[13px] text-white/80 ${quicksand.className}`}
+            variants={textVariants}
+            initial="initial"
+            animate={isMounted ? "animate" : "initial"}
+          >
+            <motion.span>
+              {isMounted ? animatedProgress : Math.round(progress)}
+            </motion.span>% selesai
+          </motion.span>
 
           <div className="flex items-center justify-end">
             {/* Conditional button: Play atau Ulangi */}
@@ -314,7 +416,7 @@ export default function PracticeModuleCard({
 
         {/* inner outline halus */}
         <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-white/8" />
-      </article>
+      </motion.article>
 
       {/* Modal Konfirmasi Reset */}
       <ResetConfirmationModal

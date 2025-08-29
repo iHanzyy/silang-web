@@ -146,7 +146,7 @@ function LearnTile({ letter, onClick, isVisible, isMounted }) {
         {/* preview area */}
         <div className="relative rounded-[20px] bg-[#F9F6EE] overflow-hidden">
           <Image
-            src={`/letters/${letter}.png`}
+            src={`/letters/${letter}.webp`}
             alt={`Isyarat huruf ${letter}`}
             fill
             className="object-contain"
@@ -242,7 +242,7 @@ function LetterViewerModal({ letter, onClose }) {
           <div className="p-4 md:p-7">
             <div className="relative w-full rounded-2xl bg-[#F9F6EE] overflow-hidden h-[40vh] md:min-h-[80vh]">
               <Image
-                src={`/letters/${letter}.png`}
+                src={`/letters/${letter}.webp`}
                 alt={`Isyarat huruf ${letter}`}
                 fill
                 className="object-contain"

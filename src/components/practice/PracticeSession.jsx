@@ -304,7 +304,7 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
                     {target && (
                       <motion.img
                         key={`img-${currentTargetLetter}-${currentIdx}-${letterIdx}`}
-                        src={`/letters/${currentTargetLetter}.png`}
+                        src={`/letters/${currentTargetLetter}.webp`}
                         alt={currentTargetLetter}
                         className="w-full h-full object-contain"
                         variants={flipVariants}

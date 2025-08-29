@@ -67,7 +67,7 @@ export default function AboutHero() {
               imgAlt="Faiz Zaenal Muttaqin"
               name="Faiz Zaenal Muttaqin"
               role="UI / UX Designer"
-              quote="Focus on the goal, not on the obstacles"
+              quote="Don't wait for perfection do the best with what you have"
               igHref="https://www.instagram.com/cuiras_13/"
               ghHref="https://github.com/faizaenal"
             />
