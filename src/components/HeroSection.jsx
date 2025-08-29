@@ -83,11 +83,12 @@ export default function HeroSection() {
         >
           <div className="aspect-[16/10] w-full relative">
             <Image
-              src="/SilangBackgroundMain.webp"
+              src="/silang-background-main.webp"
               alt="Sign Language Illustration"
               fill
               className="object-cover object-center rounded-3xl"
               priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
             />
           </div>
         </motion.div>

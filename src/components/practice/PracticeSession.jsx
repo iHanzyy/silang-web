@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { LogOut, X } from "lucide-react";
 import PracticeCamera from "./PracticeCamera";
 import ModuleCompletionModal from "./ModuleCompletionModal";
+import PracticeGuideModal from "./PracticeGuideModal";
 import { MODULES, getModuleById } from "@/lib/practiceData";
 import {
   getModuleProgress,
@@ -23,6 +24,8 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
   const [letterIdx, setLetterIdx] = useState(0); // index huruf dalam kata (khusus mod-6)
   const [showSuccess, setShowSuccess] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [prediction, setPrediction] = useState({ letter: "-", isHolding: false });
   
@@ -32,6 +35,24 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
   const lastPredictionRef = useRef({ letter: null, time: 0 });
   // Track if we've already processed this success to prevent double-processing
   const processedSuccessRef = useRef(false);
+
+  // Detect mobile dan show guide modal
+  useEffect(() => {
+    const checkIsMobile = () => {
+      const mobile = window.innerWidth < 768; // md breakpoint
+      setIsMobile(mobile);
+      
+      // Show guide modal hanya jika bukan mobile
+      if (!mobile) {
+        setShowGuideModal(true);
+      }
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   // load data modul + progress
   useEffect(() => {
@@ -351,6 +372,12 @@ export default function PracticeSession({ moduleId = "mod-1" }) {
           </div>
         </div>
       </div>
+
+      {/* Guide Modal */}
+      <PracticeGuideModal
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
 
       {/* Completion Modal */}
       <AnimatePresence>
